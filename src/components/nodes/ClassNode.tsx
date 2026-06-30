@@ -28,14 +28,19 @@ export type ClassFlowNode = Node<{ classNode: ClassNodeData }, "umlClass">;
  * `uml-class-diagram-tool/uml-notation/` のナレッジに準拠する。
  * 関連線・Handle・編集 UI は後続フェーズで追加する（Phase 1 は表示のみ）。
  */
-function ClassNodeComponent({ data }: NodeProps<ClassFlowNode>) {
+function ClassNodeComponent({ data, selected }: NodeProps<ClassFlowNode>) {
   const { classNode } = data;
   const label = stereotypeLabel(classNode.stereotype);
   // abstract は UML 慣習でクラス名を斜体にする。
   const isNameItalic = classNode.stereotype === "abstract";
 
   return (
-    <div className="min-w-[180px] rounded-sm border border-slate-700 bg-white text-slate-900 shadow-sm">
+    <div
+      className={`min-w-[180px] rounded-sm border bg-white text-slate-900 shadow-sm ${
+        // 選択中は枠を強調してインスペクタとの対応を分かりやすくする。
+        selected ? "border-blue-500 ring-2 ring-blue-300" : "border-slate-700"
+      }`}
+    >
       {/* 1 段目: ステレオタイプ + クラス名 */}
       <div className="border-b border-slate-700 px-3 py-1.5 text-center">
         {label && (
