@@ -26,14 +26,36 @@ export function formatAttribute(attribute: Attribute): string {
  * 例: `+ findById(id: String): Book`
  */
 export function formatOperation(operation: Operation): string {
-  const params = operation.parameters.map(formatParameter).join(", ");
   const returnPart = operation.returnType ? `: ${operation.returnType}` : "";
-  return `${operation.visibility} ${operation.name}(${params})${returnPart}`;
+  return `${operation.visibility} ${operation.name}(${formatParameters(
+    operation.parameters
+  )})${returnPart}`;
 }
 
 /** 引数 1 件を `name: type`（型が無ければ `name`）に整形する。 */
 function formatParameter(parameter: Parameter): string {
   return parameter.type ? `${parameter.name}: ${parameter.type}` : parameter.name;
+}
+
+/** 引数リストを `name: type, name2: type2` 形式の 1 行に整形する（Inspector の引数欄用）。 */
+export function formatParameters(parameters: Parameter[]): string {
+  return parameters.map(formatParameter).join(", ");
+}
+
+/**
+ * `name: type, name2: type2` 形式のテキストを引数配列に解析する（formatParameters の逆）。
+ * 空のトークンは無視し、型が空なら省略する。記法エラーは握りつぶして緩く解釈する。
+ */
+export function parseParameters(text: string): Parameter[] {
+  return text
+    .split(",")
+    .map((token) => token.trim())
+    .filter((token) => token.length > 0)
+    .map((token) => {
+      const [name, ...rest] = token.split(":");
+      const type = rest.join(":").trim();
+      return type ? { name: name.trim(), type } : { name: name.trim() };
+    });
 }
 
 /**

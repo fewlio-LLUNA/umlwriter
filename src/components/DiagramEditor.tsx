@@ -6,6 +6,7 @@ import {
   type OnSelectionChangeFunc,
 } from "@xyflow/react";
 
+import type { ClassNode } from "@/types/diagram";
 import type { ClassFlowNode } from "@/components/nodes/ClassNode";
 import { DiagramCanvas } from "@/components/DiagramCanvas";
 import { Toolbar } from "@/components/Toolbar";
@@ -67,6 +68,29 @@ export function DiagramEditor() {
     []
   );
 
+  // インスペクタからのクラス編集を該当ノードへ反映する（即時反映 → 自動保存）。
+  const updateClass = useCallback(
+    (id: string, updater: (classNode: ClassNode) => ClassNode) => {
+      setNodes((current) =>
+        current.map((node) =>
+          node.id === id
+            ? { ...node, data: { classNode: updater(node.data.classNode) } }
+            : node
+        )
+      );
+    },
+    [setNodes]
+  );
+
+  // インスペクタの削除ボタンからクラスを削除する。
+  const removeClass = useCallback(
+    (id: string) => {
+      setNodes((current) => current.filter((node) => node.id !== id));
+      setSelectedId((prev) => (prev === id ? null : prev));
+    },
+    [setNodes]
+  );
+
   // 選択中クラスの最新データをノードから引く（削除済みなら null）。
   const selectedClass =
     nodes.find((node) => node.id === selectedId)?.data.classNode ?? null;
@@ -82,7 +106,11 @@ export function DiagramEditor() {
             onSelectionChange={handleSelectionChange}
           />
         </div>
-        <Inspector selected={selectedClass} />
+        <Inspector
+          selected={selectedClass}
+          onUpdate={updateClass}
+          onRemove={removeClass}
+        />
       </div>
     </div>
   );
