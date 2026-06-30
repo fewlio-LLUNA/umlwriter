@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ReactFlowProvider,
   useNodesState,
   useEdgesState,
   addEdge,
@@ -187,29 +188,32 @@ export function DiagramEditor() {
     : null;
 
   return (
-    <div className="flex h-full w-full flex-col">
-      <Toolbar onAddClass={handleAddClass} />
-      <div className="flex min-h-0 flex-1">
-        <div className="min-w-0 flex-1">
-          <DiagramCanvas
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={handleConnect}
-            onSelectionChange={handleSelectionChange}
+    // Toolbar から useReactFlow（fitView）を使うため、全体を Provider で包む。
+    <ReactFlowProvider>
+      <div className="flex h-full w-full flex-col">
+        <Toolbar onAddClass={handleAddClass} />
+        <div className="flex min-h-0 flex-1">
+          <div className="min-w-0 flex-1">
+            <DiagramCanvas
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={handleConnect}
+              onSelectionChange={handleSelectionChange}
+            />
+          </div>
+          <Inspector
+            selectedClass={selectedClass}
+            selectedEdge={selectedEdge}
+            onUpdateClass={updateClass}
+            onRemoveClass={removeClass}
+            onUpdateEdge={updateEdge}
+            onSwapEdge={swapEdgeDirection}
+            onRemoveEdge={removeEdge}
           />
         </div>
-        <Inspector
-          selectedClass={selectedClass}
-          selectedEdge={selectedEdge}
-          onUpdateClass={updateClass}
-          onRemoveClass={removeClass}
-          onUpdateEdge={updateEdge}
-          onSwapEdge={swapEdgeDirection}
-          onRemoveEdge={removeEdge}
-        />
       </div>
-    </div>
+    </ReactFlowProvider>
   );
 }

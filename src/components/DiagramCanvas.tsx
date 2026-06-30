@@ -51,7 +51,8 @@ export function DiagramCanvas({
   onSelectionChange: OnSelectionChangeFunc;
 }) {
   return (
-    <div className="h-full w-full">
+    // uml-canvas: 画像書き出しの対象。マーカー定義と ReactFlow を内包する。
+    <div className="uml-canvas h-full w-full">
       {/* エッジが参照する SVG マーカー定義（画面に 1 度だけ） */}
       <MarkerDefs />
       <ReactFlow
