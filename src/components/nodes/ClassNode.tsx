@@ -9,6 +9,7 @@ import {
   formatOperation,
   stereotypeLabel,
 } from "@/lib/umlFormat";
+import { useDisplayPrefs } from "@/components/DisplayPrefsContext";
 
 /**
  * React Flow のカスタムノード型。`data` に永続データの ClassNode をそのまま載せる。
@@ -30,6 +31,7 @@ export type ClassFlowNode = Node<{ classNode: ClassNodeData }, "umlClass">;
  */
 function ClassNodeComponent({ data, selected }: NodeProps<ClassFlowNode>) {
   const { classNode } = data;
+  const { showStaticUnderline, showAbstractItalic } = useDisplayPrefs();
   const label = stereotypeLabel(classNode.stereotype);
   // abstract は UML 慣習でクラス名を斜体にする。
   const isNameItalic = classNode.stereotype === "abstract";
@@ -61,7 +63,9 @@ function ClassNodeComponent({ data, selected }: NodeProps<ClassFlowNode>) {
         {classNode.attributes.map((attribute) => (
           <li
             key={attribute.id}
-            className={attribute.isStatic ? "underline" : undefined}
+            className={
+              attribute.isStatic && showStaticUnderline ? "underline" : undefined
+            }
           >
             {formatAttribute(attribute)}
           </li>
@@ -74,8 +78,8 @@ function ClassNodeComponent({ data, selected }: NodeProps<ClassFlowNode>) {
           <li
             key={operation.id}
             className={[
-              operation.isStatic ? "underline" : "",
-              operation.isAbstract ? "italic" : "",
+              operation.isStatic && showStaticUnderline ? "underline" : "",
+              operation.isAbstract && showAbstractItalic ? "italic" : "",
             ]
               .filter(Boolean)
               .join(" ")}

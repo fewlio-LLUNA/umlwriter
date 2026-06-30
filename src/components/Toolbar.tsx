@@ -4,6 +4,7 @@ import { useCallback, useRef } from "react";
 import { useReactFlow } from "@xyflow/react";
 
 import type { Diagram } from "@/types/diagram";
+import type { DisplayPrefs } from "@/components/DisplayPrefsContext";
 import { exportCanvasImage, type ImageFormat } from "@/lib/exportImage";
 import { readDiagramFile } from "@/lib/jsonIo";
 
@@ -18,10 +19,14 @@ export function Toolbar({
   onAddClass,
   onExportJson,
   onImportDiagram,
+  displayPrefs,
+  onToggleDisplayPref,
 }: {
   onAddClass: () => void;
   onExportJson: () => void;
   onImportDiagram: (diagram: Diagram) => void;
+  displayPrefs: DisplayPrefs;
+  onToggleDisplayPref: (key: keyof DisplayPrefs) => void;
 }) {
   const { fitView } = useReactFlow();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -74,7 +79,28 @@ export function Toolbar({
         ＋ クラス追加
       </button>
 
-      <div className="ml-auto flex items-center gap-2">
+      {/* 表示オプション: static 下線 / abstract 斜体の表示切替（既定 ON） */}
+      <div className="ml-auto flex items-center gap-3">
+        <span className="text-xs text-slate-400">表示</span>
+        <label className="flex items-center gap-1 text-xs text-slate-600">
+          <input
+            type="checkbox"
+            checked={displayPrefs.showStaticUnderline}
+            onChange={() => onToggleDisplayPref("showStaticUnderline")}
+          />
+          static 下線
+        </label>
+        <label className="flex items-center gap-1 text-xs text-slate-600">
+          <input
+            type="checkbox"
+            checked={displayPrefs.showAbstractItalic}
+            onChange={() => onToggleDisplayPref("showAbstractItalic")}
+          />
+          abstract 斜体
+        </label>
+      </div>
+
+      <div className="flex items-center gap-2">
         <span className="text-xs text-slate-400">JSON</span>
         <button
           type="button"

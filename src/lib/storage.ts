@@ -7,12 +7,19 @@
  */
 
 import type { Diagram } from "@/types/diagram";
+import {
+  DEFAULT_DISPLAY_PREFS,
+  type DisplayPrefs,
+} from "@/components/DisplayPrefsContext";
 
 /** 現行スキーマ版。メジャーが上がると後方互換を切る目印。 */
 export const SCHEMA_VERSION = "1.0";
 
 /** localStorage のキー。版番号を含めて衝突を避ける。 */
 const STORAGE_KEY = "umlwriter.diagram.v1";
+
+/** 表示オプション（ビュー設定）のキー。図データとは別管理。 */
+const VIEW_PREFS_KEY = "umlwriter.view.v1";
 
 /** schemaVersion 文字列からメジャー番号（"1.0" → "1"）を取り出す。 */
 function majorOf(version: string): string {
@@ -56,5 +63,31 @@ export function loadDiagram(): Diagram | null {
     };
   } catch {
     return null;
+  }
+}
+
+/** 表示オプションを保存する（失敗は握りつぶす）。 */
+export function saveViewPrefs(prefs: DisplayPrefs): void {
+  try {
+    localStorage.setItem(VIEW_PREFS_KEY, JSON.stringify(prefs));
+  } catch {
+    // 保存できなくても表示自体は続行させる。
+  }
+}
+
+/** 表示オプションを読み込む。未保存・壊れたデータは既定値で補う。 */
+export function loadViewPrefs(): DisplayPrefs {
+  try {
+    const raw = localStorage.getItem(VIEW_PREFS_KEY);
+    if (!raw) return DEFAULT_DISPLAY_PREFS;
+    const parsed = JSON.parse(raw) as Partial<DisplayPrefs>;
+    return {
+      showStaticUnderline:
+        parsed.showStaticUnderline ?? DEFAULT_DISPLAY_PREFS.showStaticUnderline,
+      showAbstractItalic:
+        parsed.showAbstractItalic ?? DEFAULT_DISPLAY_PREFS.showAbstractItalic,
+    };
+  } catch {
+    return DEFAULT_DISPLAY_PREFS;
   }
 }

@@ -23,8 +23,18 @@ import {
   flowToDiagram,
 } from "@/lib/diagramToFlow";
 import { createEmptyClass } from "@/lib/createClass";
-import { loadDiagram, saveDiagram } from "@/lib/storage";
+import {
+  loadDiagram,
+  saveDiagram,
+  loadViewPrefs,
+  saveViewPrefs,
+} from "@/lib/storage";
 import { exportDiagramJson } from "@/lib/jsonIo";
+import {
+  DEFAULT_DISPLAY_PREFS,
+  DisplayPrefsProvider,
+  type DisplayPrefs,
+} from "@/components/DisplayPrefsContext";
 
 /** 新規クラスを少しずつずらして置くための基準オフセット。 */
 const CASCADE_STEP = 36;
@@ -42,6 +52,9 @@ export function DiagramEditor() {
   const [edges, setEdges, onEdgesChange] = useEdgesState<UmlFlowEdge>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [displayPrefs, setDisplayPrefs] = useState<DisplayPrefs>(
+    DEFAULT_DISPLAY_PREFS
+  );
   // 復元完了までは保存しない（初期の空状態で保存データを上書きしないため）。
   const hydrated = useRef(false);
 
@@ -52,6 +65,9 @@ export function DiagramEditor() {
       setNodes(classesToFlowNodes(saved));
       setEdges(edgesToFlowEdges(saved));
     }
+    // localStorage は SSR で読めないため、マウント後に反映する（ハイドレーション回避）。
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDisplayPrefs(loadViewPrefs());
     hydrated.current = true;
   }, [setNodes, setEdges]);
 
@@ -60,6 +76,12 @@ export function DiagramEditor() {
     if (!hydrated.current) return;
     saveDiagram(flowToDiagram(nodes, edges));
   }, [nodes, edges]);
+
+  // 表示オプションが変わるたびに保存する。
+  useEffect(() => {
+    if (!hydrated.current) return;
+    saveViewPrefs(displayPrefs);
+  }, [displayPrefs]);
 
   // 「クラス追加」: 既存数に応じて少しずらした位置へ新規クラスを置く。
   const handleAddClass = useCallback(() => {
@@ -188,6 +210,11 @@ export function DiagramEditor() {
     [setNodes, setEdges]
   );
 
+  // 表示オプションのトグル（static 下線 / abstract 斜体）。
+  const toggleDisplayPref = useCallback((key: keyof DisplayPrefs) => {
+    setDisplayPrefs((prev) => ({ ...prev, [key]: !prev[key] }));
+  }, []);
+
   // 選択中の要素を最新状態から引く（削除済みなら null）。
   const selectedClass =
     nodes.find((node) => node.id === selectedNodeId)?.data.classNode ?? null;
@@ -206,35 +233,40 @@ export function DiagramEditor() {
 
   return (
     // Toolbar から useReactFlow（fitView）を使うため、全体を Provider で包む。
+    // 表示オプションは Context でカスタムノードへ配る。
     <ReactFlowProvider>
-      <div className="flex h-full w-full flex-col">
-        <Toolbar
-          onAddClass={handleAddClass}
-          onExportJson={handleExportJson}
-          onImportDiagram={handleImportDiagram}
-        />
-        <div className="flex min-h-0 flex-1">
-          <div className="min-w-0 flex-1">
-            <DiagramCanvas
-              nodes={nodes}
-              edges={edges}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onConnect={handleConnect}
-              onSelectionChange={handleSelectionChange}
+      <DisplayPrefsProvider value={displayPrefs}>
+        <div className="flex h-full w-full flex-col">
+          <Toolbar
+            onAddClass={handleAddClass}
+            onExportJson={handleExportJson}
+            onImportDiagram={handleImportDiagram}
+            displayPrefs={displayPrefs}
+            onToggleDisplayPref={toggleDisplayPref}
+          />
+          <div className="flex min-h-0 flex-1">
+            <div className="min-w-0 flex-1">
+              <DiagramCanvas
+                nodes={nodes}
+                edges={edges}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onConnect={handleConnect}
+                onSelectionChange={handleSelectionChange}
+              />
+            </div>
+            <Inspector
+              selectedClass={selectedClass}
+              selectedEdge={selectedEdge}
+              onUpdateClass={updateClass}
+              onRemoveClass={removeClass}
+              onUpdateEdge={updateEdge}
+              onSwapEdge={swapEdgeDirection}
+              onRemoveEdge={removeEdge}
             />
           </div>
-          <Inspector
-            selectedClass={selectedClass}
-            selectedEdge={selectedEdge}
-            onUpdateClass={updateClass}
-            onRemoveClass={removeClass}
-            onUpdateEdge={updateEdge}
-            onSwapEdge={swapEdgeDirection}
-            onRemoveEdge={removeEdge}
-          />
         </div>
-      </div>
+      </DisplayPrefsProvider>
     </ReactFlowProvider>
   );
 }
