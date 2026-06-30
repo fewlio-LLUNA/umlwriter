@@ -10,7 +10,7 @@ import {
   type OnSelectionChangeFunc,
 } from "@xyflow/react";
 
-import type { ClassNode } from "@/types/diagram";
+import type { ClassNode, Diagram } from "@/types/diagram";
 import type { ClassFlowNode } from "@/components/nodes/ClassNode";
 import type { UmlEdgeData, UmlFlowEdge } from "@/components/edges/UmlEdge";
 import { DiagramCanvas } from "@/components/DiagramCanvas";
@@ -24,6 +24,7 @@ import {
 } from "@/lib/diagramToFlow";
 import { createEmptyClass } from "@/lib/createClass";
 import { loadDiagram, saveDiagram } from "@/lib/storage";
+import { exportDiagramJson } from "@/lib/jsonIo";
 
 /** 新規クラスを少しずつずらして置くための基準オフセット。 */
 const CASCADE_STEP = 36;
@@ -171,6 +172,22 @@ export function DiagramEditor() {
     [setEdges]
   );
 
+  // 現在の図を JSON で書き出す。
+  const handleExportJson = useCallback(() => {
+    exportDiagramJson(flowToDiagram(nodes, edges));
+  }, [nodes, edges]);
+
+  // 読み込んだ Diagram で現在の図を置き換える（自動保存に乗る）。
+  const handleImportDiagram = useCallback(
+    (diagram: Diagram) => {
+      setNodes(classesToFlowNodes(diagram));
+      setEdges(edgesToFlowEdges(diagram));
+      setSelectedNodeId(null);
+      setSelectedEdgeId(null);
+    },
+    [setNodes, setEdges]
+  );
+
   // 選択中の要素を最新状態から引く（削除済みなら null）。
   const selectedClass =
     nodes.find((node) => node.id === selectedNodeId)?.data.classNode ?? null;
@@ -191,7 +208,11 @@ export function DiagramEditor() {
     // Toolbar から useReactFlow（fitView）を使うため、全体を Provider で包む。
     <ReactFlowProvider>
       <div className="flex h-full w-full flex-col">
-        <Toolbar onAddClass={handleAddClass} />
+        <Toolbar
+          onAddClass={handleAddClass}
+          onExportJson={handleExportJson}
+          onImportDiagram={handleImportDiagram}
+        />
         <div className="flex min-h-0 flex-1">
           <div className="min-w-0 flex-1">
             <DiagramCanvas
