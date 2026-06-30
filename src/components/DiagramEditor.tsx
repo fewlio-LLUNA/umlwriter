@@ -3,18 +3,23 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   useNodesState,
+  useEdgesState,
+  addEdge,
+  type OnConnect,
   type OnSelectionChangeFunc,
 } from "@xyflow/react";
 
 import type { ClassNode } from "@/types/diagram";
 import type { ClassFlowNode } from "@/components/nodes/ClassNode";
+import type { UmlEdgeData, UmlFlowEdge } from "@/components/edges/UmlEdge";
 import { DiagramCanvas } from "@/components/DiagramCanvas";
 import { Toolbar } from "@/components/Toolbar";
 import { Inspector } from "@/components/Inspector";
 import {
   classesToFlowNodes,
   classToFlowNode,
-  flowNodesToDiagram,
+  edgesToFlowEdges,
+  flowToDiagram,
 } from "@/lib/diagramToFlow";
 import { createEmptyClass } from "@/lib/createClass";
 import { loadDiagram, saveDiagram } from "@/lib/storage";
@@ -24,15 +29,17 @@ const CASCADE_STEP = 36;
 const CASCADE_ORIGIN = 80;
 
 /**
- * 図エディタの最上位コンテナ（Phase 2）。
+ * 図エディタの最上位コンテナ（Phase 4）。
  *
- * 3 ペイン（Toolbar / Canvas / Inspector）を束ね、ノードの状態と選択を一元管理する。
- * 生きた状態は React Flow ノードで持ち、変更のたびに Diagram へシリアライズして
- * localStorage に自動保存する。リロード時は保存データから復元する。
+ * 3 ペイン（Toolbar / Canvas / Inspector）を束ね、ノード / エッジの状態と選択を
+ * 一元管理する。生きた状態は React Flow のノード / エッジで持ち、変更のたびに
+ * Diagram へシリアライズして localStorage に自動保存する。リロード時は復元する。
  */
 export function DiagramEditor() {
   const [nodes, setNodes, onNodesChange] = useNodesState<ClassFlowNode>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<UmlFlowEdge>([]);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   // 復元完了までは保存しない（初期の空状態で保存データを上書きしないため）。
   const hydrated = useRef(false);
 
@@ -41,15 +48,16 @@ export function DiagramEditor() {
     const saved = loadDiagram();
     if (saved) {
       setNodes(classesToFlowNodes(saved));
+      setEdges(edgesToFlowEdges(saved));
     }
     hydrated.current = true;
-  }, [setNodes]);
+  }, [setNodes, setEdges]);
 
-  // ノードが変わるたびに Diagram へ変換して自動保存する。
+  // ノード / エッジが変わるたびに Diagram へ変換して自動保存する。
   useEffect(() => {
     if (!hydrated.current) return;
-    saveDiagram(flowNodesToDiagram(nodes));
-  }, [nodes]);
+    saveDiagram(flowToDiagram(nodes, edges));
+  }, [nodes, edges]);
 
   // 「クラス追加」: 既存数に応じて少しずらした位置へ新規クラスを置く。
   const handleAddClass = useCallback(() => {
@@ -60,10 +68,28 @@ export function DiagramEditor() {
     });
   }, [setNodes]);
 
-  // 選択変更: 先頭の選択ノードをインスペクタ対象にする（未選択なら null）。
+  // Handle 同士の接続で関連線を作る。既定の種類は association（種類は Inspector で変更）。
+  const handleConnect = useCallback<OnConnect>(
+    (connection) => {
+      const newEdge: UmlFlowEdge = {
+        id: crypto.randomUUID(),
+        source: connection.source,
+        target: connection.target,
+        sourceHandle: connection.sourceHandle ?? undefined,
+        targetHandle: connection.targetHandle ?? undefined,
+        type: "uml",
+        data: { kind: "association" },
+      };
+      setEdges((current) => addEdge(newEdge, current));
+    },
+    [setEdges]
+  );
+
+  // 選択変更: 先頭の選択ノード / エッジをインスペクタ対象にする。
   const handleSelectionChange = useCallback<OnSelectionChangeFunc>(
-    ({ nodes: selectedNodes }) => {
-      setSelectedId(selectedNodes[0]?.id ?? null);
+    ({ nodes: selectedNodes, edges: selectedEdges }) => {
+      setSelectedNodeId(selectedNodes[0]?.id ?? null);
+      setSelectedEdgeId(selectedEdges[0]?.id ?? null);
     },
     []
   );
@@ -82,18 +108,83 @@ export function DiagramEditor() {
     [setNodes]
   );
 
-  // インスペクタの削除ボタンからクラスを削除する。
+  // クラス削除（接続している関連線も連動して取り除く）。
   const removeClass = useCallback(
     (id: string) => {
       setNodes((current) => current.filter((node) => node.id !== id));
-      setSelectedId((prev) => (prev === id ? null : prev));
+      setEdges((current) =>
+        current.filter((edge) => edge.source !== id && edge.target !== id)
+      );
+      setSelectedNodeId((prev) => (prev === id ? null : prev));
     },
-    [setNodes]
+    [setNodes, setEdges]
   );
 
-  // 選択中クラスの最新データをノードから引く（削除済みなら null）。
+  // インスペクタからの関連編集（種類・関連名）を反映する。
+  const updateEdge = useCallback(
+    (id: string, changes: Partial<UmlEdgeData>) => {
+      setEdges((current) =>
+        current.map((edge) =>
+          edge.id === id
+            ? {
+                ...edge,
+                data: {
+                  ...edge.data,
+                  ...changes,
+                  kind: changes.kind ?? edge.data?.kind ?? "association",
+                },
+              }
+            : edge
+        )
+      );
+    },
+    [setEdges]
+  );
+
+  // 始点⇄終点を入れ替える（source/target と接続辺ハンドルをまとめて交換）。
+  // 種類によってマーカーの付く側が決まるので、向きだけ後から直せるようにする。
+  const swapEdgeDirection = useCallback(
+    (id: string) => {
+      setEdges((current) =>
+        current.map((edge) =>
+          edge.id === id
+            ? {
+                ...edge,
+                source: edge.target,
+                target: edge.source,
+                sourceHandle: edge.targetHandle,
+                targetHandle: edge.sourceHandle,
+              }
+            : edge
+        )
+      );
+    },
+    [setEdges]
+  );
+
+  const removeEdge = useCallback(
+    (id: string) => {
+      setEdges((current) => current.filter((edge) => edge.id !== id));
+      setSelectedEdgeId((prev) => (prev === id ? null : prev));
+    },
+    [setEdges]
+  );
+
+  // 選択中の要素を最新状態から引く（削除済みなら null）。
   const selectedClass =
-    nodes.find((node) => node.id === selectedId)?.data.classNode ?? null;
+    nodes.find((node) => node.id === selectedNodeId)?.data.classNode ?? null;
+  const selectedEdgeFlow = edges.find((edge) => edge.id === selectedEdgeId);
+  const nameOf = (id: string) =>
+    nodes.find((node) => node.id === id)?.data.classNode.name;
+  const selectedEdge = selectedEdgeFlow
+    ? {
+        id: selectedEdgeFlow.id,
+        kind: selectedEdgeFlow.data?.kind ?? "association",
+        label: selectedEdgeFlow.data?.label,
+        sourceName: nameOf(selectedEdgeFlow.source),
+        targetName: nameOf(selectedEdgeFlow.target),
+      }
+    : null;
 
   return (
     <div className="flex h-full w-full flex-col">
@@ -102,14 +193,21 @@ export function DiagramEditor() {
         <div className="min-w-0 flex-1">
           <DiagramCanvas
             nodes={nodes}
+            edges={edges}
             onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={handleConnect}
             onSelectionChange={handleSelectionChange}
           />
         </div>
         <Inspector
-          selected={selectedClass}
-          onUpdate={updateClass}
-          onRemove={removeClass}
+          selectedClass={selectedClass}
+          selectedEdge={selectedEdge}
+          onUpdateClass={updateClass}
+          onRemoveClass={removeClass}
+          onUpdateEdge={updateEdge}
+          onSwapEdge={swapEdgeDirection}
+          onRemoveEdge={removeEdge}
         />
       </div>
     </div>

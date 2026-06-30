@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import type { NodeProps, Node } from "@xyflow/react";
+import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
 
 import type { ClassNode as ClassNodeData } from "@/types/diagram";
 import {
@@ -41,6 +41,9 @@ function ClassNodeComponent({ data, selected }: NodeProps<ClassFlowNode>) {
         selected ? "border-blue-500 ring-2 ring-blue-300" : "border-slate-700"
       }`}
     >
+      {/* 関連線の接続点。4 辺に置き、ConnectionMode.Loose で source/target 兼用にする。 */}
+      <ConnectionHandles />
+
       {/* 1 段目: ステレオタイプ + クラス名 */}
       <div className="border-b border-slate-700 px-3 py-1.5 text-center">
         {label && (
@@ -112,6 +115,34 @@ function MemberSection({
         <ul className="space-y-0.5">{children}</ul>
       )}
     </div>
+  );
+}
+
+/** 接続点の定義（4 辺）。id を sourceHandle / targetHandle として保存・復元する。 */
+const HANDLES: { id: string; position: Position }[] = [
+  { id: "top", position: Position.Top },
+  { id: "right", position: Position.Right },
+  { id: "bottom", position: Position.Bottom },
+  { id: "left", position: Position.Left },
+];
+
+/**
+ * 4 辺の接続ハンドル。ConnectionMode.Loose 前提で type="source" のみ置き、
+ * どの辺からどの辺へでも線を引けるようにする。
+ */
+function ConnectionHandles() {
+  return (
+    <>
+      {HANDLES.map(({ id, position }) => (
+        <Handle
+          key={id}
+          id={id}
+          type="source"
+          position={position}
+          className="!h-2 !w-2 !border !border-slate-400 !bg-white"
+        />
+      ))}
+    </>
   );
 }
 

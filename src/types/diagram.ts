@@ -95,6 +95,13 @@ export interface Edge {
   sourceRole?: string;
   /** 終点側のロール名 */
   targetRole?: string;
+  /**
+   * 描画アンカー（任意）: 線がどの辺の Handle に接続しているか。
+   * 元スキーマには無いがリロード時に接続辺を保つための加算的フィールド。
+   * "top" | "right" | "bottom" | "left"。
+   */
+  sourceHandle?: string;
+  targetHandle?: string;
 }
 
 /** ノート（コメント）の箱。MVP では空配列のまま。 */
