@@ -38,7 +38,7 @@ function ClassNodeComponent({ data, selected }: NodeProps<ClassFlowNode>) {
 
   return (
     <div
-      className={`min-w-[180px] rounded-sm border bg-white text-slate-900 shadow-sm ${
+      className={`uml-class-box min-w-[180px] rounded-sm border bg-white text-slate-900 shadow-sm ${
         // 選択中は枠を強調してインスペクタとの対応を分かりやすくする。
         selected ? "border-blue-500 ring-2 ring-blue-300" : "border-slate-700"
       }`}

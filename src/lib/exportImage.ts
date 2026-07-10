@@ -51,9 +51,16 @@ export async function exportCanvasImage(
     backgroundColor: "#ffffff",
     ...(format === "png" ? { pixelRatio: 2 } : {}),
   };
-  const dataUrl =
-    format === "svg"
-      ? await toSvg(container, options)
-      : await toPng(container, options);
-  downloadDataUrl(dataUrl, `class-diagram.${format}`);
+  // 撮影中だけ .exporting を付け、選択クラスの青枠を CSS で打ち消す。
+  // 例外が出ても必ず外せるよう finally で戻す。
+  container.classList.add("exporting");
+  try {
+    const dataUrl =
+      format === "svg"
+        ? await toSvg(container, options)
+        : await toPng(container, options);
+    downloadDataUrl(dataUrl, `class-diagram.${format}`);
+  } finally {
+    container.classList.remove("exporting");
+  }
 }

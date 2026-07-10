@@ -34,3 +34,11 @@ body {
 .react-flow__node.selected .react-flow__handle {
   opacity: 1;
 }
+
+/* 画像書き出し中（.uml-canvas.exporting）は、選択クラスの青枠・青リングを消して
+   非選択と同じ見た目で画像化する。枠色は slate-700 に戻し、リングは Tailwind の
+   リング変数を無効化する（shadow-sm はそのまま残る）。 */
+.uml-canvas.exporting .react-flow__node.selected .uml-class-box {
+  border-color: var(--color-slate-700, #334155);
+  --tw-ring-shadow: 0 0 #0000;
+}
