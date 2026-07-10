@@ -59,6 +59,7 @@ export function loadDiagram(): Diagram | null {
       schemaVersion: parsed.schemaVersion ?? SCHEMA_VERSION,
       classes: parsed.classes,
       edges: parsed.edges ?? [],
+      packages: parsed.packages ?? [],
       notes: parsed.notes ?? [],
     };
   } catch {

@@ -20,6 +20,8 @@ const EXCLUDED_CLASSES = [
   "react-flow__panel",
   "react-flow__background",
   "react-flow__handle",
+  // パッケージ選択時のリサイズハンドル・枠線（UI chrome）。
+  "react-flow__resize-control",
 ];
 
 /** chrome（ミニマップ・コントロール・背景・透かし）を除外するフィルタ。 */

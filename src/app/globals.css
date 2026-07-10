@@ -60,6 +60,19 @@ body {
   border-radius: 100%;
 }
 
+/* パッケージは「枠だけ」。本体は当たり判定を持たせず、背面に重なるクラス・
+   関連線をクリックできるようにする。選択・移動はタブ（左上ラベル）で行い、
+   リサイズハンドルは明示的に当たり判定を戻す。
+   React Flow は選択可能ノードのラッパーに inline で pointer-events:all を付ける
+   ため、!important で上書きする（タブ／ハンドルだけ当たり判定を戻す）。 */
+.react-flow__node-umlPackage {
+  pointer-events: none !important;
+}
+.react-flow__node-umlPackage .uml-package-tab,
+.react-flow__node-umlPackage .react-flow__resize-control {
+  pointer-events: auto !important;
+}
+
 /* 画像書き出し中（.uml-canvas.exporting）は、選択クラスの青枠・青リングを消して
    非選択と同じ見た目で画像化する。枠色は slate-700 に戻し、リングは Tailwind の
    リング変数を無効化する（shadow-sm はそのまま残る）。 */

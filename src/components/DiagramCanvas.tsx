@@ -14,15 +14,17 @@ import {
 // React Flow のスタイル。これを読み込まないとキャンバスが真っ白になる。
 import "@xyflow/react/dist/style.css";
 
-import { ClassNode, type ClassFlowNode } from "@/components/nodes/ClassNode";
+import { ClassNode } from "@/components/nodes/ClassNode";
+import { PackageNode } from "@/components/nodes/PackageNode";
 import { UmlEdge, type UmlFlowEdge } from "@/components/edges/UmlEdge";
 import { MarkerDefs } from "@/components/edges/MarkerDefs";
+import type { AppFlowNode } from "@/lib/diagramToFlow";
 
 /**
  * カスタムノード / エッジの登録表。コンポーネント外で定義し、
  * 再レンダーのたびに作り直されないようにする。
  */
-const nodeTypes = { umlClass: ClassNode };
+const nodeTypes = { umlClass: ClassNode, umlPackage: PackageNode };
 const edgeTypes = { uml: UmlEdge };
 
 /** Delete / Backspace のどちらでもノード / エッジを削除できるようにする。 */
@@ -43,9 +45,9 @@ export function DiagramCanvas({
   onConnect,
   onSelectionChange,
 }: {
-  nodes: ClassFlowNode[];
+  nodes: AppFlowNode[];
   edges: UmlFlowEdge[];
-  onNodesChange: OnNodesChange<ClassFlowNode>;
+  onNodesChange: OnNodesChange<AppFlowNode>;
   onEdgesChange: OnEdgesChange<UmlFlowEdge>;
   onConnect: OnConnect;
   onSelectionChange: OnSelectionChangeFunc;
@@ -66,6 +68,8 @@ export function DiagramCanvas({
         edgeTypes={edgeTypes}
         connectionMode={ConnectionMode.Loose}
         deleteKeyCode={DELETE_KEY_CODES}
+        // パッケージを選択しても前面化させず、背面のまま重なるクラスを操作可能に保つ
+        elevateNodesOnSelect={false}
         fitView
       >
         {/* 背景のドットグリッド */}

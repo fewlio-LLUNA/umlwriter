@@ -78,6 +78,14 @@ const edgeSchema = z.object({
   targetHandle: z.string().optional(),
 });
 
+const packageNodeSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  position: positionSchema,
+  width: z.number(),
+  height: z.number(),
+});
+
 const noteNodeSchema = z.object({
   id: z.string(),
   text: z.string(),
@@ -85,11 +93,12 @@ const noteNodeSchema = z.object({
   attachedTo: z.array(z.string()).optional(),
 });
 
-/** 図全体のスキーマ。edges / notes は欠けていても空配列で受ける。 */
+/** 図全体のスキーマ。edges / packages / notes は欠けていても空配列で受ける。 */
 const diagramSchema = z.object({
   schemaVersion: z.string(),
   classes: z.array(classNodeSchema),
   edges: z.array(edgeSchema).default([]),
+  packages: z.array(packageNodeSchema).default([]),
   notes: z.array(noteNodeSchema).default([]),
 });
 

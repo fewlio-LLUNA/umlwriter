@@ -115,6 +115,22 @@ export interface NoteNode {
 }
 
 /**
+ * パッケージ（フォルダ型の枠）。複数クラスを視覚的に囲むための、
+ * 見た目だけのノード。中のクラスとは独立（枠を動かしてもクラスは動かない）。
+ */
+export interface PackageNode {
+  id: string;
+  /** パッケージ名（左上タブに表示） */
+  name: string;
+  /** キャンバス上の座標（左上） */
+  position: { x: number; y: number };
+  /** 枠の幅（手動リサイズで変わる） */
+  width: number;
+  /** 枠の高さ（手動リサイズで変わる） */
+  height: number;
+}
+
+/**
  * 図全体を表す最上位オブジェクト。JSON 入出力の単位。
  */
 export interface Diagram {
@@ -124,6 +140,8 @@ export interface Diagram {
   classes: ClassNode[];
   /** 関連線の配列 */
   edges: Edge[];
+  /** パッケージ（フォルダ型の枠）の配列。無くても可（旧データ互換） */
+  packages: PackageNode[];
   /** ノート（コメント）の配列。MVP では空配列でも可 */
   notes: NoteNode[];
 }

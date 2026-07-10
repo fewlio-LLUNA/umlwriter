@@ -10,8 +10,7 @@ import {
   type OnSelectionChangeFunc,
 } from "@xyflow/react";
 
-import type { ClassNode, Diagram } from "@/types/diagram";
-import type { ClassFlowNode } from "@/components/nodes/ClassNode";
+import type { ClassNode, Diagram, PackageNode } from "@/types/diagram";
 import type { UmlEdgeData, UmlFlowEdge } from "@/components/edges/UmlEdge";
 import { DiagramCanvas } from "@/components/DiagramCanvas";
 import { Toolbar } from "@/components/Toolbar";
@@ -21,8 +20,13 @@ import {
   classToFlowNode,
   edgesToFlowEdges,
   flowToDiagram,
+  isPackageNode,
+  packagesToFlowNodes,
+  packageToFlowNode,
+  type AppFlowNode,
 } from "@/lib/diagramToFlow";
 import { createEmptyClass } from "@/lib/createClass";
+import { createEmptyPackage } from "@/lib/createPackage";
 import {
   loadDiagram,
   saveDiagram,
@@ -48,7 +52,7 @@ const CASCADE_ORIGIN = 80;
  * Diagram へシリアライズして localStorage に自動保存する。リロード時は復元する。
  */
 export function DiagramEditor() {
-  const [nodes, setNodes, onNodesChange] = useNodesState<ClassFlowNode>([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<AppFlowNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<UmlFlowEdge>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
@@ -62,7 +66,8 @@ export function DiagramEditor() {
   useEffect(() => {
     const saved = loadDiagram();
     if (saved) {
-      setNodes(classesToFlowNodes(saved));
+      // パッケージを先頭に置き、クラスより背面に描画する。
+      setNodes([...packagesToFlowNodes(saved), ...classesToFlowNodes(saved)]);
       setEdges(edgesToFlowEdges(saved));
     }
     // localStorage は SSR で読めないため、マウント後に反映する（ハイドレーション回避）。
@@ -89,6 +94,15 @@ export function DiagramEditor() {
       const offset = CASCADE_ORIGIN + (current.length % 8) * CASCADE_STEP;
       const newClass = createEmptyClass({ x: offset, y: offset });
       return [...current, classToFlowNode(newClass)];
+    });
+  }, [setNodes]);
+
+  // 「パッケージ追加」: 先頭に差し込み、クラスより背面に置く。
+  const handleAddPackage = useCallback(() => {
+    setNodes((current) => {
+      const offset = CASCADE_ORIGIN + (current.length % 8) * CASCADE_STEP;
+      const newPackage = createEmptyPackage({ x: offset, y: offset });
+      return [packageToFlowNode(newPackage), ...current];
     });
   }, [setNodes]);
 
@@ -122,11 +136,10 @@ export function DiagramEditor() {
   const updateClass = useCallback(
     (id: string, updater: (classNode: ClassNode) => ClassNode) => {
       setNodes((current) =>
-        current.map((node) =>
-          node.id === id
-            ? { ...node, data: { classNode: updater(node.data.classNode) } }
-            : node
-        )
+        current.map((node) => {
+          if (node.id !== id || isPackageNode(node)) return node;
+          return { ...node, data: { classNode: updater(node.data.classNode) } };
+        })
       );
     },
     [setNodes]
@@ -142,6 +155,31 @@ export function DiagramEditor() {
       setSelectedNodeId((prev) => (prev === id ? null : prev));
     },
     [setNodes, setEdges]
+  );
+
+  // インスペクタからのパッケージ名編集を反映する。
+  const updatePackage = useCallback(
+    (id: string, changes: Partial<PackageNode>) => {
+      setNodes((current) =>
+        current.map((node) => {
+          if (node.id !== id || !isPackageNode(node)) return node;
+          return {
+            ...node,
+            data: { packageNode: { ...node.data.packageNode, ...changes } },
+          };
+        })
+      );
+    },
+    [setNodes]
+  );
+
+  // パッケージ削除（見た目の枠のみ。関連線には影響しない）。
+  const removePackage = useCallback(
+    (id: string) => {
+      setNodes((current) => current.filter((node) => node.id !== id));
+      setSelectedNodeId((prev) => (prev === id ? null : prev));
+    },
+    [setNodes]
   );
 
   // インスペクタからの関連編集（種類・関連名）を反映する。
@@ -202,7 +240,11 @@ export function DiagramEditor() {
   // 読み込んだ Diagram で現在の図を置き換える（自動保存に乗る）。
   const handleImportDiagram = useCallback(
     (diagram: Diagram) => {
-      setNodes(classesToFlowNodes(diagram));
+      // パッケージを先頭（背面）に置いてから読み込む。
+      setNodes([
+        ...packagesToFlowNodes(diagram),
+        ...classesToFlowNodes(diagram),
+      ]);
       setEdges(edgesToFlowEdges(diagram));
       setSelectedNodeId(null);
       setSelectedEdgeId(null);
@@ -216,11 +258,21 @@ export function DiagramEditor() {
   }, []);
 
   // 選択中の要素を最新状態から引く（削除済みなら null）。
+  const selectedNode = nodes.find((node) => node.id === selectedNodeId) ?? null;
   const selectedClass =
-    nodes.find((node) => node.id === selectedNodeId)?.data.classNode ?? null;
+    selectedNode && !isPackageNode(selectedNode)
+      ? selectedNode.data.classNode
+      : null;
+  const selectedPackage =
+    selectedNode && isPackageNode(selectedNode)
+      ? selectedNode.data.packageNode
+      : null;
   const selectedEdgeFlow = edges.find((edge) => edge.id === selectedEdgeId);
-  const nameOf = (id: string) =>
-    nodes.find((node) => node.id === id)?.data.classNode.name;
+  const nameOf = (id: string) => {
+    // 関連線はクラス同士のみ接続するため、対象はクラスノード。
+    const node = nodes.find((n) => n.id === id);
+    return node && !isPackageNode(node) ? node.data.classNode.name : undefined;
+  };
   const selectedEdge = selectedEdgeFlow
     ? {
         id: selectedEdgeFlow.id,
@@ -239,6 +291,7 @@ export function DiagramEditor() {
         <div className="flex h-full w-full flex-col">
           <Toolbar
             onAddClass={handleAddClass}
+            onAddPackage={handleAddPackage}
             onExportJson={handleExportJson}
             onImportDiagram={handleImportDiagram}
             displayPrefs={displayPrefs}
@@ -258,11 +311,14 @@ export function DiagramEditor() {
             <Inspector
               selectedClass={selectedClass}
               selectedEdge={selectedEdge}
+              selectedPackage={selectedPackage}
               onUpdateClass={updateClass}
               onRemoveClass={removeClass}
               onUpdateEdge={updateEdge}
               onSwapEdge={swapEdgeDirection}
               onRemoveEdge={removeEdge}
+              onUpdatePackage={updatePackage}
+              onRemovePackage={removePackage}
             />
           </div>
         </div>

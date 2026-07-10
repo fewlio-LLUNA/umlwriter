@@ -1,9 +1,10 @@
 "use client";
 
-import type { ClassNode } from "@/types/diagram";
+import type { ClassNode, PackageNode } from "@/types/diagram";
 import type { UmlEdgeData } from "@/components/edges/UmlEdge";
 import { ClassEditor } from "@/components/inspector/ClassEditor";
 import { EdgeEditor, type SelectedEdge } from "@/components/inspector/EdgeEditor";
+import { PackageEditor } from "@/components/inspector/PackageEditor";
 
 /**
  * 右側インスペクタ（Phase 4）。
@@ -15,19 +16,25 @@ import { EdgeEditor, type SelectedEdge } from "@/components/inspector/EdgeEditor
 export function Inspector({
   selectedClass,
   selectedEdge,
+  selectedPackage,
   onUpdateClass,
   onRemoveClass,
   onUpdateEdge,
   onSwapEdge,
   onRemoveEdge,
+  onUpdatePackage,
+  onRemovePackage,
 }: {
   selectedClass: ClassNode | null;
   selectedEdge: SelectedEdge | null;
+  selectedPackage: PackageNode | null;
   onUpdateClass: (id: string, updater: (c: ClassNode) => ClassNode) => void;
   onRemoveClass: (id: string) => void;
   onUpdateEdge: (id: string, changes: Partial<UmlEdgeData>) => void;
   onSwapEdge: (id: string) => void;
   onRemoveEdge: (id: string) => void;
+  onUpdatePackage: (id: string, changes: Partial<PackageNode>) => void;
+  onRemovePackage: (id: string) => void;
 }) {
   return (
     <aside className="flex w-80 shrink-0 flex-col gap-3 overflow-y-auto border-l border-slate-200 bg-white p-4 text-sm">
@@ -43,6 +50,12 @@ export function Inspector({
           onUpdate={onUpdateEdge}
           onSwap={onSwapEdge}
           onRemove={onRemoveEdge}
+        />
+      ) : selectedPackage ? (
+        <PackageEditor
+          packageNode={selectedPackage}
+          onUpdate={onUpdatePackage}
+          onRemove={onRemovePackage}
         />
       ) : (
         <EmptyState />

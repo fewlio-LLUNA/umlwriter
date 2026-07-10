@@ -10,10 +10,20 @@ import type {
   ClassNode as ClassNodeData,
   Diagram,
   Edge as DiagramEdge,
+  PackageNode as PackageNodeData,
 } from "@/types/diagram";
 import type { ClassFlowNode } from "@/components/nodes/ClassNode";
+import type { PackageFlowNode } from "@/components/nodes/PackageNode";
 import type { UmlFlowEdge } from "@/components/edges/UmlEdge";
 import { SCHEMA_VERSION } from "@/lib/storage";
+
+/** キャンバス上のノード（クラス or パッケージ）のユニオン。 */
+export type AppFlowNode = ClassFlowNode | PackageFlowNode;
+
+/** ノードがパッケージかを判定する型ガード。 */
+export function isPackageNode(node: AppFlowNode): node is PackageFlowNode {
+  return node.type === "umlPackage";
+}
 
 /** 1 件のクラスを React Flow のカスタムノードへ変換する。 */
 export function classToFlowNode(classNode: ClassNodeData): ClassFlowNode {
@@ -28,6 +38,23 @@ export function classToFlowNode(classNode: ClassNodeData): ClassFlowNode {
 /** Diagram のクラス配列を React Flow ノード配列へ変換する。 */
 export function classesToFlowNodes(diagram: Diagram): ClassFlowNode[] {
   return diagram.classes.map(classToFlowNode);
+}
+
+/** 1 件のパッケージを React Flow のカスタムノードへ変換する。 */
+export function packageToFlowNode(pkg: PackageNodeData): PackageFlowNode {
+  return {
+    id: pkg.id,
+    type: "umlPackage",
+    position: pkg.position,
+    width: pkg.width,
+    height: pkg.height,
+    data: { packageNode: pkg },
+  };
+}
+
+/** Diagram のパッケージ配列を React Flow ノード配列へ変換する。 */
+export function packagesToFlowNodes(diagram: Diagram): PackageFlowNode[] {
+  return diagram.packages.map(packageToFlowNode);
 }
 
 /** 1 件の関連を React Flow のカスタムエッジへ変換する。 */
@@ -63,20 +90,32 @@ function flowEdgeToDiagramEdge(edge: UmlFlowEdge): DiagramEdge {
 
 /**
  * React Flow のノード / エッジを Diagram へ戻す（保存用シリアライズ）。
- * ドラッグで動いた座標は `node.position` が最新なので、そちらを正とする。
- * Note はまだ扱わないため空配列でルートを組む。
+ * ドラッグで動いた座標は `node.position`、リサイズ後のサイズは `node.width/height`
+ * が最新なので、そちらを正とする。Note はまだ扱わないため空配列でルートを組む。
  */
 export function flowToDiagram(
-  nodes: ClassFlowNode[],
+  nodes: AppFlowNode[],
   edges: UmlFlowEdge[]
 ): Diagram {
+  const classes: ClassNodeData[] = [];
+  const packages: PackageNodeData[] = [];
+  for (const node of nodes) {
+    if (isPackageNode(node)) {
+      packages.push({
+        ...node.data.packageNode,
+        position: node.position,
+        width: node.width ?? node.data.packageNode.width,
+        height: node.height ?? node.data.packageNode.height,
+      });
+    } else {
+      classes.push({ ...node.data.classNode, position: node.position });
+    }
+  }
   return {
     schemaVersion: SCHEMA_VERSION,
-    classes: nodes.map((node) => ({
-      ...node.data.classNode,
-      position: node.position,
-    })),
+    classes,
     edges: edges.map(flowEdgeToDiagramEdge),
+    packages,
     notes: [],
   };
 }

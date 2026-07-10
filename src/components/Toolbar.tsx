@@ -17,12 +17,14 @@ import { readDiagramFile } from "@/lib/jsonIo";
  */
 export function Toolbar({
   onAddClass,
+  onAddPackage,
   onExportJson,
   onImportDiagram,
   displayPrefs,
   onToggleDisplayPref,
 }: {
   onAddClass: () => void;
+  onAddPackage: () => void;
   onExportJson: () => void;
   onImportDiagram: (diagram: Diagram) => void;
   displayPrefs: DisplayPrefs;
@@ -77,6 +79,13 @@ export function Toolbar({
         className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
       >
         ＋ クラス追加
+      </button>
+      <button
+        type="button"
+        onClick={onAddPackage}
+        className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+      >
+        ＋ パッケージ追加
       </button>
 
       {/* 表示オプション: static 下線 / abstract 斜体の表示切替（既定 ON） */}
