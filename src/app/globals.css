@@ -20,3 +20,17 @@ body {
   background: var(--background);
   color: var(--foreground);
 }
+
+/* 接続ハンドル（4 辺の丸）は既定で隠し、
+   マウスが箱に重なったとき・クラスが選択されたときだけ見せる。
+   display:none ではなく opacity で消すのは、非表示中も接続ドラッグの
+   当たり判定（pointer-events）を保つため。 */
+.react-flow__handle {
+  opacity: 0;
+  transition: opacity 0.12s ease-in-out;
+}
+
+.react-flow__node:hover .react-flow__handle,
+.react-flow__node.selected .react-flow__handle {
+  opacity: 1;
+}

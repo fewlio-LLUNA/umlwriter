@@ -16,7 +16,11 @@ import { toPng, toSvg } from "html-to-image";
 export type ImageFormat = "svg" | "png";
 
 /** 画像化から除外する React Flow の UI 要素（クラス名）。 */
-const EXCLUDED_CLASSES = ["react-flow__panel", "react-flow__background"];
+const EXCLUDED_CLASSES = [
+  "react-flow__panel",
+  "react-flow__background",
+  "react-flow__handle",
+];
 
 /** chrome（ミニマップ・コントロール・背景・透かし）を除外するフィルタ。 */
 function excludeChrome(node: HTMLElement): boolean {
