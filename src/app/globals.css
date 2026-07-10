@@ -35,6 +35,20 @@ body {
   opacity: 1;
 }
 
+/* エッジの接続点をノード境界にぴったり合わせる。
+   React Flow は接続点をハンドルの外縁で計算する。既定の transform は
+   ハンドルを境界の半分外側（8px の半分＝4px 外）へ押し出すため、
+   ハンドルを透明化するとその 4px が空いて線が箱から浮いて見える。
+   外向きの押し出しをやめ、ハンドルを枠の内側に寄せて外縁を境界に一致させる。 */
+.uml-canvas .react-flow__handle-top,
+.uml-canvas .react-flow__handle-bottom {
+  transform: translate(-50%, 0);
+}
+.uml-canvas .react-flow__handle-left,
+.uml-canvas .react-flow__handle-right {
+  transform: translate(0, -50%);
+}
+
 /* 画像書き出し中（.uml-canvas.exporting）は、選択クラスの青枠・青リングを消して
    非選択と同じ見た目で画像化する。枠色は slate-700 に戻し、リングは Tailwind の
    リング変数を無効化する（shadow-sm はそのまま残る）。 */
