@@ -122,30 +122,49 @@ function MemberSection({
   );
 }
 
-/** 接続点の定義（4 辺）。id を sourceHandle / targetHandle として保存・復元する。 */
-const HANDLES: { id: string; position: Position }[] = [
-  { id: "top", position: Position.Top },
-  { id: "right", position: Position.Right },
-  { id: "bottom", position: Position.Bottom },
-  { id: "left", position: Position.Left },
+/**
+ * 各辺の定義。axis は辺に沿って接続点をずらす方向
+ * （top/bottom は水平＝left、left/right は垂直＝top）。
+ */
+const SIDES: { side: string; position: Position; axis: "left" | "top" }[] = [
+  { side: "top", position: Position.Top, axis: "left" },
+  { side: "right", position: Position.Right, axis: "top" },
+  { side: "bottom", position: Position.Bottom, axis: "left" },
+  { side: "left", position: Position.Left, axis: "top" },
 ];
 
+/** 1 辺あたりの接続点の位置（辺に沿った割合 %）。中央 50% を含む 3 点。 */
+const HANDLE_RATIOS = [25, 50, 75] as const;
+
 /**
- * 4 辺の接続ハンドル。ConnectionMode.Loose 前提で type="source" のみ置き、
- * どの辺からどの辺へでも線を引けるようにする。
+ * 接続点の id。中央（50%）は旧データ互換のため side 名そのまま（"top" 等）、
+ * 端の点は `side-ratio`（"top-25" / "top-75"）にする。
+ */
+function handleId(side: string, ratio: number): string {
+  return ratio === 50 ? side : `${side}-${ratio}`;
+}
+
+/**
+ * 各辺に 3 点ずつ（計 12 個）の接続ハンドル。ConnectionMode.Loose 前提で
+ * type="source" のみ置き、どの点からどの点へでも線を引けるようにする。
+ * id は sourceHandle / targetHandle として保存・復元する。中央の点は旧 id を
+ * 保つため、既存の保存図の接続も壊れない。
  */
 function ConnectionHandles() {
   return (
     <>
-      {HANDLES.map(({ id, position }) => (
-        <Handle
-          key={id}
-          id={id}
-          type="source"
-          position={position}
-          className="!h-2 !w-2 !border !border-slate-400 !bg-white"
-        />
-      ))}
+      {SIDES.flatMap(({ side, position, axis }) =>
+        HANDLE_RATIOS.map((ratio) => (
+          <Handle
+            key={handleId(side, ratio)}
+            id={handleId(side, ratio)}
+            type="source"
+            position={position}
+            style={{ [axis]: `${ratio}%` }}
+            className="!h-2 !w-2 !border !border-slate-400 !bg-white"
+          />
+        ))
+      )}
     </>
   );
 }

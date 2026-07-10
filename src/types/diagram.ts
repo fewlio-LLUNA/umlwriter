@@ -96,9 +96,10 @@ export interface Edge {
   /** 終点側のロール名 */
   targetRole?: string;
   /**
-   * 描画アンカー（任意）: 線がどの辺の Handle に接続しているか。
-   * 元スキーマには無いがリロード時に接続辺を保つための加算的フィールド。
-   * "top" | "right" | "bottom" | "left"。
+   * 描画アンカー（任意）: 線がどの接続点に接続しているか。
+   * 元スキーマには無いがリロード時に接続点を保つための加算的フィールド。
+   * 各辺 3 点。中央は "top" / "right" / "bottom" / "left"、
+   * 端は "top-25" / "top-75" のように `辺-割合` で表す。
    */
   sourceHandle?: string;
   targetHandle?: string;
