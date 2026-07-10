@@ -49,6 +49,17 @@ body {
   transform: translate(0, -50%);
 }
 
+/* 関連を引き始める当たり判定（＋カーソルの範囲）を、見た目の丸より広げる。
+   ハンドル本体は 8px のままにして接続点を境界に保ちつつ、透明な ::before で
+   クリック可能領域だけを拡張する。pointer-events はハンドル本体から継承され、
+   接続可能（connectionindicator）なときだけ有効になる。 */
+.uml-canvas .react-flow__handle::before {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: 100%;
+}
+
 /* 画像書き出し中（.uml-canvas.exporting）は、選択クラスの青枠・青リングを消して
    非選択と同じ見た目で画像化する。枠色は slate-700 に戻し、リングは Tailwind の
    リング変数を無効化する（shadow-sm はそのまま残る）。 */
