@@ -6,17 +6,24 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "sync:dev": "wrangler dev",
+    "sync:deploy": "wrangler deploy",
+    "sync:typecheck": "tsc -p party/tsconfig.json"
   },
   "dependencies": {
     "@xyflow/react": "^12.11.1",
     "html-to-image": "^1.11.13",
     "next": "^16.2.9",
+    "partyserver": "^0.5.8",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
+    "y-partyserver": "^2.2.0",
+    "yjs": "^13.6.31",
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260713.1",
     "@tailwindcss/postcss": "^4.3.2",
     "@types/node": "^26.0.1",
     "@types/react": "^19.2.17",
@@ -24,6 +31,7 @@
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.2.9",
     "tailwindcss": "^4.3.2",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "wrangler": "^4.110.0"
   }
 }
