@@ -59,6 +59,26 @@ export function recordToFlowNode(record: YNodeRecord): AppFlowNode {
     : classToFlowNode(record.node);
 }
 
+/**
+ * 共有レコードから React Flow ノードを作りつつ、前ノードの「ローカル固有の状態」を引き継ぐ。
+ *
+ * xyflow は計測サイズ（`measured`）が無いノードを非表示にするため、リモート更新の
+ * たびにノードを作り直すと、移動中の相手ノードが未計測扱いで消えてしまう。
+ * `measured` と選択・ドラッグ状態は前ノードから引き継ぎ、データ・座標だけ更新する。
+ */
+export function hydrateFlowNode(
+  prev: AppFlowNode | undefined,
+  record: YNodeRecord
+): AppFlowNode {
+  const fresh = recordToFlowNode(record);
+  if (prev) {
+    fresh.measured = prev.measured;
+    fresh.selected = prev.selected;
+    fresh.dragging = prev.dragging;
+  }
+  return fresh;
+}
+
 /** React Flow エッジ → 共有レコード。 */
 export function flowEdgeToRecord(edge: UmlFlowEdge): YEdgeRecord {
   return {

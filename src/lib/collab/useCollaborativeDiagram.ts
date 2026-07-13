@@ -26,7 +26,7 @@ import type { AppFlowNode } from "@/lib/diagramToFlow";
 import type { UmlFlowEdge } from "@/components/edges/UmlEdge";
 import {
   flowNodeToRecord,
-  recordToFlowNode,
+  hydrateFlowNode,
   flowEdgeToRecord,
   recordToFlowEdge,
   recordsEqual,
@@ -129,9 +129,13 @@ export function useCollaborativeDiagram(roomId: string): CollaborativeDiagram {
       }, LOCAL_ORIGIN);
       // ビューには next に加えて「共有 Map にしか無い要素」も足す。
       // 相手が追加済みの要素を、自分の編集反映で画面から落とさないため。
+      // 前ノードがあれば measured 等を引き継ぐ（未計測での非表示を防ぐ）。
+      const prevById = new Map(prev.map((node) => [node.id, node]));
       const merged = next.slice();
       yNodes.forEach((record, id) => {
-        if (!nextIds.has(id)) merged.push(recordToFlowNode(record));
+        if (!nextIds.has(id)) {
+          merged.push(hydrateFlowNode(prevById.get(id), record));
+        }
       });
       commitNodes(merged);
     },
@@ -188,17 +192,21 @@ export function useCollaborativeDiagram(roomId: string): CollaborativeDiagram {
 
     // 共有状態を丸ごと React 状態へ組み直す（初期同期・再同期時）。
     const rebuildAll = () => {
-      const nodeArr: AppFlowNode[] = [];
-      yNodes.forEach((record) => nodeArr.push(recordToFlowNode(record)));
       const prevNodes = new Map(nodesRef.current.map((n) => [n.id, n]));
-      // 選択などローカル専用状態を保つ。
-      for (const node of nodeArr) node.selected = prevNodes.get(node.id)?.selected;
+      const nodeArr: AppFlowNode[] = [];
+      // 計測サイズ・選択などローカル専用状態を前ノードから引き継ぐ。
+      yNodes.forEach((record, id) =>
+        nodeArr.push(hydrateFlowNode(prevNodes.get(id), record))
+      );
       commitNodes(nodeArr);
 
-      const edgeArr: UmlFlowEdge[] = [];
-      yEdges.forEach((record) => edgeArr.push(recordToFlowEdge(record)));
       const prevEdges = new Map(edgesRef.current.map((e) => [e.id, e]));
-      for (const edge of edgeArr) edge.selected = prevEdges.get(edge.id)?.selected;
+      const edgeArr: UmlFlowEdge[] = [];
+      yEdges.forEach((record, id) => {
+        const edge = recordToFlowEdge(record);
+        edge.selected = prevEdges.get(id)?.selected;
+        edgeArr.push(edge);
+      });
       commitEdges(edgeArr);
     };
 
@@ -216,9 +224,9 @@ export function useCollaborativeDiagram(roomId: string): CollaborativeDiagram {
         }
         const record = yNodes.get(key);
         if (!record) return;
-        const fresh = recordToFlowNode(record);
-        fresh.selected = byId.get(key)?.selected; // 選択はローカルを維持
-        byId.set(key, fresh);
+        // 計測サイズ・選択・ドラッグ状態を引き継ぐ（移動中の相手ノードが
+        // 未計測扱いで消えるのを防ぐ）。
+        byId.set(key, hydrateFlowNode(byId.get(key), record));
       });
       commitNodes(Array.from(byId.values()));
     };
