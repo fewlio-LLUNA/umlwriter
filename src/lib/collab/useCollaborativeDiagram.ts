@@ -112,8 +112,8 @@ export function useCollaborativeDiagram(roomId: string): CollaborativeDiagram {
     (updater: Updater<AppFlowNode>) => {
       const prev = nodesRef.current;
       const next = typeof updater === "function" ? updater(prev) : updater;
+      const nextIds = new Set(next.map((node) => node.id));
       doc.transact(() => {
-        const nextIds = new Set(next.map((node) => node.id));
         // 削除は「直前まで自分の手元にあり、今回消えたもの」だけに限定する。
         // 共有 Map にあってローカル未反映の要素（他ユーザーが今追加した等）は
         // 全集合リコンサイルで巻き込まないようにする（消失バグ対策）。
@@ -127,7 +127,13 @@ export function useCollaborativeDiagram(roomId: string): CollaborativeDiagram {
           }
         }
       }, LOCAL_ORIGIN);
-      commitNodes(next);
+      // ビューには next に加えて「共有 Map にしか無い要素」も足す。
+      // 相手が追加済みの要素を、自分の編集反映で画面から落とさないため。
+      const merged = next.slice();
+      yNodes.forEach((record, id) => {
+        if (!nextIds.has(id)) merged.push(recordToFlowNode(record));
+      });
+      commitNodes(merged);
     },
     [doc, yNodes, commitNodes]
   );
@@ -136,8 +142,8 @@ export function useCollaborativeDiagram(roomId: string): CollaborativeDiagram {
     (updater: Updater<UmlFlowEdge>) => {
       const prev = edgesRef.current;
       const next = typeof updater === "function" ? updater(prev) : updater;
+      const nextIds = new Set(next.map((edge) => edge.id));
       doc.transact(() => {
-        const nextIds = new Set(next.map((edge) => edge.id));
         // ノードと同様、消したのは「直前まで手元にあり今回消えた関連」だけに限定。
         for (const edge of prev) {
           if (!nextIds.has(edge.id)) yEdges.delete(edge.id);
@@ -149,7 +155,12 @@ export function useCollaborativeDiagram(roomId: string): CollaborativeDiagram {
           }
         }
       }, LOCAL_ORIGIN);
-      commitEdges(next);
+      // ノード同様、共有 Map にしか無い関連もビューに足す。
+      const merged = next.slice();
+      yEdges.forEach((record, id) => {
+        if (!nextIds.has(id)) merged.push(recordToFlowEdge(record));
+      });
+      commitEdges(merged);
     },
     [doc, yEdges, commitEdges]
   );
