@@ -5,6 +5,7 @@ import { useReactFlow } from "@xyflow/react";
 
 import type { Diagram } from "@/types/diagram";
 import type { DisplayPrefs } from "@/components/DisplayPrefsContext";
+import type { ConnectionStatus } from "@/lib/collab/useCollaborativeDiagram";
 import { exportCanvasImage, type ImageFormat } from "@/lib/exportImage";
 import { readDiagramFile } from "@/lib/jsonIo";
 
@@ -22,6 +23,10 @@ export function Toolbar({
   onImportDiagram,
   displayPrefs,
   onToggleDisplayPref,
+  isCollaborating,
+  connectionStatus,
+  peerCount,
+  onShare,
 }: {
   onAddClass: () => void;
   onAddPackage: () => void;
@@ -29,6 +34,14 @@ export function Toolbar({
   onImportDiagram: (diagram: Diagram) => void;
   displayPrefs: DisplayPrefs;
   onToggleDisplayPref: (key: keyof DisplayPrefs) => void;
+  /** 共同編集モード（room に参加中）か。 */
+  isCollaborating: boolean;
+  /** 接続状態（共同編集時のみ）。 */
+  connectionStatus?: ConnectionStatus;
+  /** 自分以外の参加人数（共同編集時のみ）。 */
+  peerCount: number;
+  /** 共有: room 未参加なら作成、参加中ならリンクをコピー。 */
+  onShare: () => void;
 }) {
   const { fitView } = useReactFlow();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -87,6 +100,28 @@ export function Toolbar({
       >
         ＋ パッケージ追加
       </button>
+
+      {/* 共有: 未参加なら部屋を作成、参加中ならリンクをコピー */}
+      <button
+        type="button"
+        onClick={onShare}
+        className="rounded-md border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700 hover:bg-emerald-100"
+      >
+        {isCollaborating ? "🔗 リンクをコピー" : "🔗 共有して同時編集"}
+      </button>
+      {isCollaborating && (
+        <span className="flex items-center gap-1.5 text-xs text-slate-500">
+          <span
+            className={
+              connectionStatus === "connected"
+                ? "inline-block h-2 w-2 rounded-full bg-emerald-500"
+                : "inline-block h-2 w-2 rounded-full bg-amber-400"
+            }
+          />
+          {connectionStatus === "connected" ? "接続中" : "接続待ち"}
+          {peerCount > 0 && `・他 ${peerCount} 人`}
+        </span>
+      )}
 
       {/* 表示オプション: static 下線 / abstract 斜体の表示切替（既定 ON） */}
       <div className="ml-auto flex items-center gap-3">

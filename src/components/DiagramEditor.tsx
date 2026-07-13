@@ -1,18 +1,27 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import {
   ReactFlowProvider,
   useNodesState,
   useEdgesState,
   addEdge,
   type OnConnect,
+  type OnNodesChange,
+  type OnEdgesChange,
   type OnSelectionChangeFunc,
 } from "@xyflow/react";
 
 import type { ClassNode, Diagram, PackageNode } from "@/types/diagram";
 import type { UmlEdgeData, UmlFlowEdge } from "@/components/edges/UmlEdge";
-import { DiagramCanvas } from "@/components/DiagramCanvas";
+import { DiagramCanvas, type CanvasPresence } from "@/components/DiagramCanvas";
 import { Toolbar } from "@/components/Toolbar";
 import { Inspector } from "@/components/Inspector";
 import {
@@ -39,26 +48,70 @@ import {
   DisplayPrefsProvider,
   type DisplayPrefs,
 } from "@/components/DisplayPrefsContext";
+import {
+  buildRoomUrl,
+  consumeSeedFlag,
+  generateRoomId,
+  getRoomIdFromUrl,
+  markSeedRoom,
+  type UserIdentity,
+} from "@/lib/collab/room";
+import {
+  useCollaborativeDiagram,
+  type ConnectionStatus,
+  type RemotePresence,
+} from "@/lib/collab/useCollaborativeDiagram";
 
 /** 新規クラスを少しずつずらして置くための基準オフセット。 */
 const CASCADE_STEP = 36;
 const CASCADE_ORIGIN = 80;
 
 /**
- * 図エディタの最上位コンテナ（Phase 4）。
- *
- * 3 ペイン（Toolbar / Canvas / Inspector）を束ね、ノード / エッジの状態と選択を
- * 一元管理する。生きた状態は React Flow のノード / エッジで持ち、変更のたびに
- * Diagram へシリアライズして localStorage に自動保存する。リロード時は復元する。
+ * 図の状態と操作の共通インターフェース。
+ * ローカルモード（useNodesState）と共同編集モード（Yjs）のどちらも同じ形で提供し、
+ * 下の DiagramEditorBody が中身を意識せずに使えるようにする。
+ */
+interface EditorStore {
+  nodes: AppFlowNode[];
+  edges: UmlFlowEdge[];
+  onNodesChange: OnNodesChange<AppFlowNode>;
+  onEdgesChange: OnEdgesChange<UmlFlowEdge>;
+  setNodes: Dispatch<SetStateAction<AppFlowNode[]>>;
+  setEdges: Dispatch<SetStateAction<UmlFlowEdge[]>>;
+}
+
+/** 共同編集時のプレゼンス連携。 */
+interface PresenceApi {
+  self: UserIdentity;
+  remote: RemotePresence[];
+  status: ConnectionStatus;
+  setCursor: (pos: { x: number; y: number } | null) => void;
+  setSelection: (id: string | null) => void;
+}
+
+/**
+ * 図エディタの最上位。マウント時に URL の ?room=xxxx を見て、
+ * あれば共同編集モード、無ければ従来のローカル単独モードを選ぶ。
+ * room 判定はクライアントでのみ行うため、確定するまでは何も描かない
+ * （SSR とのハイドレーション不一致を避ける）。
  */
 export function DiagramEditor() {
+  const [roomId, setRoomId] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    // URL は SSR で読めないため、マウント後にクライアントで判定する。
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setRoomId(getRoomIdFromUrl());
+  }, []);
+
+  if (roomId === undefined) return null;
+  return roomId ? <CollaborativeEditor roomId={roomId} /> : <LocalEditor />;
+}
+
+/** ローカル単独モード: 従来どおり localStorage で永続化する。 */
+function LocalEditor() {
   const [nodes, setNodes, onNodesChange] = useNodesState<AppFlowNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<UmlFlowEdge>([]);
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
-  const [displayPrefs, setDisplayPrefs] = useState<DisplayPrefs>(
-    DEFAULT_DISPLAY_PREFS
-  );
   // 復元完了までは保存しない（初期の空状態で保存データを上書きしないため）。
   const hydrated = useRef(false);
 
@@ -70,9 +123,6 @@ export function DiagramEditor() {
       setNodes([...packagesToFlowNodes(saved), ...classesToFlowNodes(saved)]);
       setEdges(edgesToFlowEdges(saved));
     }
-    // localStorage は SSR で読めないため、マウント後に反映する（ハイドレーション回避）。
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setDisplayPrefs(loadViewPrefs());
     hydrated.current = true;
   }, [setNodes, setEdges]);
 
@@ -82,11 +132,90 @@ export function DiagramEditor() {
     saveDiagram(flowToDiagram(nodes, edges));
   }, [nodes, edges]);
 
-  // 表示オプションが変わるたびに保存する。
+  const store: EditorStore = {
+    nodes,
+    edges,
+    onNodesChange,
+    onEdgesChange,
+    setNodes,
+    setEdges,
+  };
+  return <DiagramEditorBody store={store} roomId={null} />;
+}
+
+/** 共同編集モード: Yjs 共有ドキュメントを正として同期する。 */
+function CollaborativeEditor({ roomId }: { roomId: string }) {
+  const collab = useCollaborativeDiagram(roomId);
+  // 新規作成した部屋に、作成前の図を 1 度だけ引き継ぐ。
+  const seededRef = useRef(false);
+
   useEffect(() => {
-    if (!hydrated.current) return;
+    if (seededRef.current || !collab.synced) return;
+    seededRef.current = true;
+    // 既存の部屋に入っただけなら初期化しない（共有データを優先）。
+    if (!consumeSeedFlag(roomId)) return;
+    // 既に誰かが中身を入れていたら上書きしない。
+    if (collab.nodes.length > 0 || collab.edges.length > 0) return;
+    const local = loadDiagram();
+    if (!local) return;
+    collab.setNodes([
+      ...packagesToFlowNodes(local),
+      ...classesToFlowNodes(local),
+    ]);
+    collab.setEdges(edgesToFlowEdges(local));
+  }, [collab, roomId]);
+
+  const presence: PresenceApi = {
+    self: collab.self,
+    remote: collab.remote,
+    status: collab.status,
+    setCursor: collab.setCursor,
+    setSelection: collab.setSelection,
+  };
+
+  return (
+    <DiagramEditorBody store={collab} roomId={roomId} presence={presence} />
+  );
+}
+
+/**
+ * 3 ペイン（Toolbar / Canvas / Inspector）の本体。
+ * ノード / エッジの編集操作は store 経由で行い、ローカル/共同編集の違いを吸収する。
+ * 表示オプションと選択状態はユーザーごとのローカル状態として保持する。
+ */
+function DiagramEditorBody({
+  store,
+  roomId,
+  presence,
+}: {
+  store: EditorStore;
+  roomId: string | null;
+  presence?: PresenceApi;
+}) {
+  const { nodes, edges, onNodesChange, onEdgesChange, setNodes, setEdges } =
+    store;
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [displayPrefs, setDisplayPrefs] = useState<DisplayPrefs>(
+    DEFAULT_DISPLAY_PREFS
+  );
+  // 表示オプションはユーザーごとの設定。共有せず localStorage で個別に持つ。
+  const prefsHydrated = useRef(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDisplayPrefs(loadViewPrefs());
+    prefsHydrated.current = true;
+  }, []);
+  useEffect(() => {
+    if (!prefsHydrated.current) return;
     saveViewPrefs(displayPrefs);
   }, [displayPrefs]);
+
+  // 選択が変わったら他ユーザーへ知らせる（プレゼンス用）。
+  const broadcastSelection = presence?.setSelection;
+  useEffect(() => {
+    broadcastSelection?.(selectedNodeId ?? selectedEdgeId ?? null);
+  }, [broadcastSelection, selectedNodeId, selectedEdgeId]);
 
   // 「クラス追加」: 既存数に応じて少しずらした位置へ新規クラスを置く。
   const handleAddClass = useCallback(() => {
@@ -132,7 +261,7 @@ export function DiagramEditor() {
     []
   );
 
-  // インスペクタからのクラス編集を該当ノードへ反映する（即時反映 → 自動保存）。
+  // インスペクタからのクラス編集を該当ノードへ反映する（即時反映 → 同期 / 保存）。
   const updateClass = useCallback(
     (id: string, updater: (classNode: ClassNode) => ClassNode) => {
       setNodes((current) =>
@@ -204,7 +333,6 @@ export function DiagramEditor() {
   );
 
   // 始点⇄終点を入れ替える（source/target と接続辺ハンドルをまとめて交換）。
-  // 種類によってマーカーの付く側が決まるので、向きだけ後から直せるようにする。
   const swapEdgeDirection = useCallback(
     (id: string) => {
       setEdges((current) =>
@@ -237,7 +365,7 @@ export function DiagramEditor() {
     exportDiagramJson(flowToDiagram(nodes, edges));
   }, [nodes, edges]);
 
-  // 読み込んだ Diagram で現在の図を置き換える（自動保存に乗る）。
+  // 読み込んだ Diagram で現在の図を置き換える（同期 / 保存に乗る）。
   const handleImportDiagram = useCallback(
     (diagram: Diagram) => {
       // パッケージを先頭（背面）に置いてから読み込む。
@@ -256,6 +384,21 @@ export function DiagramEditor() {
   const toggleDisplayPref = useCallback((key: keyof DisplayPrefs) => {
     setDisplayPrefs((prev) => ({ ...prev, [key]: !prev[key] }));
   }, []);
+
+  // 共有: 未参加なら現在の図を引き継いだ新しい部屋を作る。参加中ならリンクをコピー。
+  const handleShare = useCallback(() => {
+    if (roomId) {
+      void navigator.clipboard?.writeText(window.location.href);
+      window.alert(
+        "共有リンクをコピーしました。\nこのリンクを知っている人が同時に編集できます。"
+      );
+      return;
+    }
+    const newRoom = generateRoomId();
+    markSeedRoom(newRoom); // 現在の図を新しい部屋へ引き継ぐ印
+    saveDiagram(flowToDiagram(nodes, edges)); // 引き継ぎ元を確定保存
+    window.location.href = buildRoomUrl(newRoom);
+  }, [roomId, nodes, edges]);
 
   // 選択中の要素を最新状態から引く（削除済みなら null）。
   const selectedNode = nodes.find((node) => node.id === selectedNodeId) ?? null;
@@ -283,6 +426,10 @@ export function DiagramEditor() {
       }
     : null;
 
+  const canvasPresence: CanvasPresence | undefined = presence
+    ? { remote: presence.remote, onCursorMove: presence.setCursor }
+    : undefined;
+
   return (
     // Toolbar から useReactFlow（fitView）を使うため、全体を Provider で包む。
     // 表示オプションは Context でカスタムノードへ配る。
@@ -296,6 +443,10 @@ export function DiagramEditor() {
             onImportDiagram={handleImportDiagram}
             displayPrefs={displayPrefs}
             onToggleDisplayPref={toggleDisplayPref}
+            isCollaborating={roomId !== null}
+            connectionStatus={presence?.status}
+            peerCount={presence?.remote.length ?? 0}
+            onShare={handleShare}
           />
           <div className="flex min-h-0 flex-1">
             <div className="min-w-0 flex-1">
@@ -306,6 +457,7 @@ export function DiagramEditor() {
                 onEdgesChange={onEdgesChange}
                 onConnect={handleConnect}
                 onSelectionChange={handleSelectionChange}
+                presence={canvasPresence}
               />
             </div>
             <Inspector
