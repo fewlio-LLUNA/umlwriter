@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type Dispatch,
@@ -22,6 +23,7 @@ import {
 import type { ClassNode, Diagram, PackageNode } from "@/types/diagram";
 import type { UmlEdgeData, UmlFlowEdge } from "@/components/edges/UmlEdge";
 import { DiagramCanvas, type CanvasPresence } from "@/components/DiagramCanvas";
+import { RemoteSelectionProvider } from "@/components/collab/RemoteSelectionContext";
 import { Toolbar } from "@/components/Toolbar";
 import { Inspector } from "@/components/Inspector";
 import {
@@ -430,11 +432,24 @@ function DiagramEditorBody({
     ? { remote: presence.remote, onCursorMove: presence.setCursor }
     : undefined;
 
+  // 他ユーザーの選択を「要素 id → 選択者一覧」にまとめ、各ノードへ配る。
+  const remoteSelection = useMemo(() => {
+    const map = new Map<string, RemotePresence[]>();
+    for (const peer of presence?.remote ?? []) {
+      if (!peer.selection) continue;
+      const list = map.get(peer.selection);
+      if (list) list.push(peer);
+      else map.set(peer.selection, [peer]);
+    }
+    return map;
+  }, [presence?.remote]);
+
   return (
     // Toolbar から useReactFlow（fitView）を使うため、全体を Provider で包む。
     // 表示オプションは Context でカスタムノードへ配る。
     <ReactFlowProvider>
       <DisplayPrefsProvider value={displayPrefs}>
+       <RemoteSelectionProvider value={remoteSelection}>
         <div className="flex h-full w-full flex-col">
           <Toolbar
             onAddClass={handleAddClass}
@@ -474,6 +489,7 @@ function DiagramEditorBody({
             />
           </div>
         </div>
+       </RemoteSelectionProvider>
       </DisplayPrefsProvider>
     </ReactFlowProvider>
   );

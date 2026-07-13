@@ -10,6 +10,7 @@ import {
   stereotypeLabel,
 } from "@/lib/umlFormat";
 import { useDisplayPrefs } from "@/components/DisplayPrefsContext";
+import { RemoteSelectionOutline } from "@/components/collab/RemoteSelectionOutline";
 
 /**
  * React Flow のカスタムノード型。`data` に永続データの ClassNode をそのまま載せる。
@@ -29,7 +30,7 @@ export type ClassFlowNode = Node<{ classNode: ClassNodeData }, "umlClass">;
  * `uml-class-diagram-tool/uml-notation/` のナレッジに準拠する。
  * 関連線・Handle・編集 UI は後続フェーズで追加する（Phase 1 は表示のみ）。
  */
-function ClassNodeComponent({ data, selected }: NodeProps<ClassFlowNode>) {
+function ClassNodeComponent({ id, data, selected }: NodeProps<ClassFlowNode>) {
   const { classNode } = data;
   const { showStaticUnderline, showAbstractItalic } = useDisplayPrefs();
   const label = stereotypeLabel(classNode.stereotype);
@@ -38,11 +39,14 @@ function ClassNodeComponent({ data, selected }: NodeProps<ClassFlowNode>) {
 
   return (
     <div
-      className={`uml-class-box min-w-[180px] rounded-sm border bg-white text-slate-900 shadow-sm ${
+      className={`uml-class-box relative min-w-[180px] rounded-sm border bg-white text-slate-900 shadow-sm ${
         // 選択中は枠を強調してインスペクタとの対応を分かりやすくする。
         selected ? "border-blue-500 ring-2 ring-blue-300" : "border-slate-700"
       }`}
     >
+      {/* 共同編集: 他ユーザーが選択中なら色枠を重ねる */}
+      <RemoteSelectionOutline nodeId={id} />
+
       {/* 関連線の接続点。4 辺に置き、ConnectionMode.Loose で source/target 兼用にする。 */}
       <ConnectionHandles />
 

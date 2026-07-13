@@ -4,6 +4,7 @@ import { memo } from "react";
 import { NodeResizer, type NodeProps, type Node } from "@xyflow/react";
 
 import type { PackageNode as PackageNodeData } from "@/types/diagram";
+import { RemoteSelectionOutline } from "@/components/collab/RemoteSelectionOutline";
 
 /**
  * React Flow のカスタムノード型。`data` に永続データの PackageNode を載せる。
@@ -22,10 +23,13 @@ const MIN_HEIGHT = 90;
  * 背面に重なるクラスが透けて見えるようにする。選択時は NodeResizer の
  * ハンドル・枠線だけで表現し、画像書き出しでは除外される（本体の枠は残る）。
  */
-function PackageNodeComponent({ data, selected }: NodeProps<PackageFlowNode>) {
+function PackageNodeComponent({ id, data, selected }: NodeProps<PackageFlowNode>) {
   const { packageNode } = data;
   return (
     <div className="uml-package-box relative h-full w-full">
+      {/* 共同編集: 他ユーザーが選択中なら色枠を重ねる */}
+      <RemoteSelectionOutline nodeId={id} />
+
       {/* 選択時のみリサイズハンドルを表示。これが選択の視覚表現も兼ねる。 */}
       <NodeResizer
         minWidth={MIN_WIDTH}
