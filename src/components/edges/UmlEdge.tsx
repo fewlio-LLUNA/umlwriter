@@ -11,6 +11,7 @@ import {
 
 import type { RelationKind } from "@/types/diagram";
 import { edgeStyleOf } from "./markerConfig";
+import { useRemoteSelectors } from "@/components/collab/RemoteSelectionContext";
 
 /** カスタムエッジが React Flow 上で持つデータ。 */
 export interface UmlEdgeData {
@@ -30,6 +31,7 @@ export type UmlFlowEdge = FlowEdge<UmlEdgeData, "uml">;
  * 接続点はノード移動に追従する（React Flow が座標を再計算する）。
  */
 function UmlEdgeComponent({
+  id,
   sourceX,
   sourceY,
   targetX,
@@ -50,8 +52,23 @@ function UmlEdgeComponent({
     targetPosition,
   });
 
+  // 共同編集: 他ユーザーが選択中ならその色でハロー＋名前を出す。
+  const remoteSelectors = useRemoteSelectors(id);
+  const remoteColor = remoteSelectors[0]?.user.color;
+
   return (
     <>
+      {/* 他ユーザー選択時の色ハロー（本線の背面に太めで敷く） */}
+      {remoteColor && (
+        <path
+          d={path}
+          fill="none"
+          stroke={remoteColor}
+          strokeWidth={6}
+          strokeOpacity={0.35}
+          strokeLinecap="round"
+        />
+      )}
       <BaseEdge
         path={path}
         markerStart={style.markerStart}
@@ -62,6 +79,26 @@ function UmlEdgeComponent({
           strokeDasharray: style.dashed ? "6 4" : undefined,
         }}
       />
+      {remoteSelectors.length > 0 && (
+        <EdgeLabelRenderer>
+          <div
+            className="pointer-events-none absolute flex gap-1"
+            style={{
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY - 16}px)`,
+            }}
+          >
+            {remoteSelectors.map((peer) => (
+              <span
+                key={peer.clientId}
+                className="whitespace-nowrap rounded px-1 text-[10px] font-medium leading-4 text-white"
+                style={{ backgroundColor: peer.user.color }}
+              >
+                {peer.user.name}
+              </span>
+            ))}
+          </div>
+        </EdgeLabelRenderer>
+      )}
       {data?.label && (
         <EdgeLabelRenderer>
           <div
