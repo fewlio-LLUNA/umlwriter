@@ -110,12 +110,15 @@ export function useCollaborativeDiagram(roomId: string): CollaborativeDiagram {
   // ローカル編集 → 共有 Map へ差分反映（削除・追加・更新）。
   const setNodes = useCallback(
     (updater: Updater<AppFlowNode>) => {
-      const next =
-        typeof updater === "function" ? updater(nodesRef.current) : updater;
+      const prev = nodesRef.current;
+      const next = typeof updater === "function" ? updater(prev) : updater;
       doc.transact(() => {
         const nextIds = new Set(next.map((node) => node.id));
-        for (const key of Array.from(yNodes.keys())) {
-          if (!nextIds.has(key)) yNodes.delete(key);
+        // 削除は「直前まで自分の手元にあり、今回消えたもの」だけに限定する。
+        // 共有 Map にあってローカル未反映の要素（他ユーザーが今追加した等）は
+        // 全集合リコンサイルで巻き込まないようにする（消失バグ対策）。
+        for (const node of prev) {
+          if (!nextIds.has(node.id)) yNodes.delete(node.id);
         }
         for (const node of next) {
           const record = flowNodeToRecord(node);
@@ -131,12 +134,13 @@ export function useCollaborativeDiagram(roomId: string): CollaborativeDiagram {
 
   const setEdges = useCallback(
     (updater: Updater<UmlFlowEdge>) => {
-      const next =
-        typeof updater === "function" ? updater(edgesRef.current) : updater;
+      const prev = edgesRef.current;
+      const next = typeof updater === "function" ? updater(prev) : updater;
       doc.transact(() => {
         const nextIds = new Set(next.map((edge) => edge.id));
-        for (const key of Array.from(yEdges.keys())) {
-          if (!nextIds.has(key)) yEdges.delete(key);
+        // ノードと同様、消したのは「直前まで手元にあり今回消えた関連」だけに限定。
+        for (const edge of prev) {
+          if (!nextIds.has(edge.id)) yEdges.delete(edge.id);
         }
         for (const edge of next) {
           const record = flowEdgeToRecord(edge);
