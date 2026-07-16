@@ -38,6 +38,65 @@ export function VisibilitySelect({
   );
 }
 
+/**
+ * 行の並び替えボタン（▲▼）。属性・操作の行で共通利用する。
+ * 端の行では対応する方向を disabled にして、順序の限界を見た目で示す。
+ */
+export function ReorderRowButtons({
+  onMoveUp,
+  onMoveDown,
+  canMoveUp,
+  canMoveDown,
+}: {
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+}) {
+  return (
+    <div className="flex shrink-0 flex-col">
+      <ReorderButton
+        onClick={onMoveUp}
+        disabled={!canMoveUp}
+        label="上へ移動"
+        glyph="▲"
+      />
+      <ReorderButton
+        onClick={onMoveDown}
+        disabled={!canMoveDown}
+        label="下へ移動"
+        glyph="▼"
+      />
+    </div>
+  );
+}
+
+/** 並び替えボタン 1 個（▲ / ▼）。 */
+function ReorderButton({
+  onClick,
+  disabled,
+  label,
+  glyph,
+}: {
+  onClick: () => void;
+  disabled: boolean;
+  label: string;
+  glyph: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="rounded px-1 text-[8px] leading-[1.4] text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-default disabled:text-slate-200 disabled:hover:bg-transparent"
+      aria-label={label}
+      title={label}
+    >
+      {glyph}
+    </button>
+  );
+}
+
 /** 行末の削除ボタン（属性・操作の行で共通利用）。 */
 export function RemoveRowButton({ onClick }: { onClick: () => void }) {
   return (

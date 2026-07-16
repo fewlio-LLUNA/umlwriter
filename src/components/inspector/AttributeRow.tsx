@@ -1,20 +1,33 @@
 "use client";
 
 import type { Attribute } from "@/types/diagram";
-import { INPUT_CLASS, RemoveRowButton, VisibilitySelect } from "./controls";
+import {
+  INPUT_CLASS,
+  RemoveRowButton,
+  ReorderRowButtons,
+  VisibilitySelect,
+} from "./controls";
 
 /**
  * 属性 1 行の編集 UI。
- * 〔可視性〕〔名前〕〔型〕〔static〕〔削除〕。値は親（モデル）に即時反映する。
+ * 〔可視性〕〔名前〕〔型〕〔static〕〔並び替え〕〔削除〕。値は親（モデル）に即時反映する。
  */
 export function AttributeRow({
   attribute,
   onChange,
   onRemove,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp,
+  canMoveDown,
 }: {
   attribute: Attribute;
   onChange: (next: Attribute) => void;
   onRemove: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
 }) {
   return (
     <li className="flex items-center gap-1">
@@ -50,6 +63,12 @@ export function AttributeRow({
         />
         static
       </label>
+      <ReorderRowButtons
+        onMoveUp={onMoveUp}
+        onMoveDown={onMoveDown}
+        canMoveUp={canMoveUp}
+        canMoveDown={canMoveDown}
+      />
       <RemoveRowButton onClick={onRemove} />
     </li>
   );

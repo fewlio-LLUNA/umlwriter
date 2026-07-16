@@ -4,11 +4,16 @@ import { useState } from "react";
 
 import type { Operation } from "@/types/diagram";
 import { formatParameters, parseParameters } from "@/lib/umlFormat";
-import { INPUT_CLASS, RemoveRowButton, VisibilitySelect } from "./controls";
+import {
+  INPUT_CLASS,
+  RemoveRowButton,
+  ReorderRowButtons,
+  VisibilitySelect,
+} from "./controls";
 
 /**
  * 操作 1 件の編集 UI。
- * 〔可視性〕〔名前〕〔戻り型〕／〔引数〕〔static〕〔abstract〕〔削除〕。
+ * 〔可視性〕〔名前〕〔戻り型〕〔並び替え〕〔削除〕／〔引数〕〔static〕〔abstract〕。
  *
  * 引数だけは `name: type, ...` のテキストで編集する。入力中の再整形による
  * カーソルのジャンクを避けるため、生テキストを行内ローカル state で保持し、
@@ -19,10 +24,18 @@ export function OperationRow({
   operation,
   onChange,
   onRemove,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp,
+  canMoveDown,
 }: {
   operation: Operation;
   onChange: (next: Operation) => void;
   onRemove: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
 }) {
   const [paramsText, setParamsText] = useState(() =>
     formatParameters(operation.parameters)
@@ -57,6 +70,12 @@ export function OperationRow({
           placeholder="戻り型"
           className={INPUT_CLASS}
           aria-label="戻り型"
+        />
+        <ReorderRowButtons
+          onMoveUp={onMoveUp}
+          onMoveDown={onMoveDown}
+          canMoveUp={canMoveUp}
+          canMoveDown={canMoveDown}
         />
         <RemoveRowButton onClick={onRemove} />
       </div>
