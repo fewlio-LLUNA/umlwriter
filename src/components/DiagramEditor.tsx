@@ -26,6 +26,7 @@ import { DiagramCanvas, type CanvasPresence } from "@/components/DiagramCanvas";
 import { RemoteSelectionProvider } from "@/components/collab/RemoteSelectionContext";
 import { Toolbar } from "@/components/Toolbar";
 import { Inspector } from "@/components/Inspector";
+import { InspectorResizer } from "@/components/InspectorResizer";
 import {
   classesToFlowNodes,
   classToFlowNode,
@@ -43,6 +44,10 @@ import {
   saveDiagram,
   loadViewPrefs,
   saveViewPrefs,
+  clampInspectorWidth,
+  loadInspectorWidth,
+  saveInspectorWidth,
+  INSPECTOR_DEFAULT_WIDTH,
 } from "@/lib/storage";
 import { exportDiagramJson } from "@/lib/jsonIo";
 import {
@@ -212,6 +217,25 @@ function DiagramEditorBody({
     if (!prefsHydrated.current) return;
     saveViewPrefs(displayPrefs);
   }, [displayPrefs]);
+
+  // インスペクタ幅も表示オプションと同じくユーザーごとのローカル設定。
+  const [inspectorWidth, setInspectorWidth] = useState(INSPECTOR_DEFAULT_WIDTH);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setInspectorWidth(loadInspectorWidth());
+  }, []);
+  // ドラッグ中は毎フレーム変わるため、書き込みは落ち着いてから 1 回だけにする。
+  useEffect(() => {
+    const timer = setTimeout(() => saveInspectorWidth(inspectorWidth), 300);
+    return () => clearTimeout(timer);
+  }, [inspectorWidth]);
+  // 窓が狭くなったとき、キャンバスが潰れないよう幅を締め直す。
+  useEffect(() => {
+    const handleResize = () =>
+      setInspectorWidth((current) => clampInspectorWidth(current));
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // 選択が変わったら他ユーザーへ知らせる（プレゼンス用）。
   const broadcastSelection = presence?.setSelection;
@@ -475,7 +499,12 @@ function DiagramEditorBody({
                 presence={canvasPresence}
               />
             </div>
+            <InspectorResizer
+              width={inspectorWidth}
+              onResize={setInspectorWidth}
+            />
             <Inspector
+              width={inspectorWidth}
               selectedClass={selectedClass}
               selectedEdge={selectedEdge}
               selectedPackage={selectedPackage}

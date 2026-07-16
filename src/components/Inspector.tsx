@@ -14,6 +14,7 @@ import { PackageEditor } from "@/components/inspector/PackageEditor";
  * 保存は DiagramEditor 側の自動保存に乗る。
  */
 export function Inspector({
+  width,
   selectedClass,
   selectedEdge,
   selectedPackage,
@@ -25,6 +26,8 @@ export function Inspector({
   onUpdatePackage,
   onRemovePackage,
 }: {
+  /** 表示幅（px）。境界のスプリッターで変わるため親が持つ。 */
+  width: number;
   selectedClass: ClassNode | null;
   selectedEdge: SelectedEdge | null;
   selectedPackage: PackageNode | null;
@@ -37,7 +40,11 @@ export function Inspector({
   onRemovePackage: (id: string) => void;
 }) {
   return (
-    <aside className="flex w-80 shrink-0 flex-col gap-3 overflow-y-auto border-l border-slate-200 bg-white p-4 text-sm">
+    // 境界線は隣の InspectorResizer が兼ねるため、ここでは左枠線を持たない。
+    <aside
+      style={{ width }}
+      className="flex shrink-0 flex-col gap-3 overflow-y-auto bg-white p-4 text-sm"
+    >
       {selectedClass ? (
         <ClassEditor
           classNode={selectedClass}
