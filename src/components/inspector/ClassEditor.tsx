@@ -9,6 +9,7 @@ import type {
 import { INPUT_CLASS } from "./controls";
 import { AttributeRow } from "./AttributeRow";
 import { OperationRow } from "./OperationRow";
+import { reorderItems, useSortableList } from "./useSortableList";
 
 /** ステレオタイプ 4 択の選択肢。 */
 const STEREOTYPE_OPTIONS: { value: Stereotype; label: string }[] = [
@@ -30,18 +31,6 @@ const newOperation = (): Operation => ({
   name: "method",
   parameters: [],
 });
-
-/**
- * 配列の要素を 1 つ隣へ入れ替えた新しい配列を返す。
- * 移動先が配列の外なら元の配列をそのまま返す（端では何も起きない）。
- */
-function moveItem<T>(items: T[], index: number, direction: -1 | 1): T[] {
-  const target = index + direction;
-  if (target < 0 || target >= items.length) return items;
-  const next = [...items];
-  [next[index], next[target]] = [next[target], next[index]];
-  return next;
-}
 
 /**
  * 選択中クラスの編集フォーム（クラス名・ステレオタイプ・説明・属性・操作）。
@@ -72,8 +61,9 @@ export function ClassEditor({
       ...c,
       attributes: c.attributes.filter((_, i) => i !== index),
     }));
-  const moveAttribute = (index: number, direction: -1 | 1) =>
-    update((c) => ({ ...c, attributes: moveItem(c.attributes, index, direction) }));
+  const attributeSortable = useSortableList((from, to) =>
+    update((c) => ({ ...c, attributes: reorderItems(c.attributes, from, to) }))
+  );
 
   // 操作リストの増減・更新。
   const addOperation = () =>
@@ -88,8 +78,9 @@ export function ClassEditor({
       ...c,
       operations: c.operations.filter((_, i) => i !== index),
     }));
-  const moveOperation = (index: number, direction: -1 | 1) =>
-    update((c) => ({ ...c, operations: moveItem(c.operations, index, direction) }));
+  const operationSortable = useSortableList((from, to) =>
+    update((c) => ({ ...c, operations: reorderItems(c.operations, from, to) }))
+  );
 
   return (
     <div className="flex flex-col gap-4 overflow-y-auto">
@@ -145,10 +136,7 @@ export function ClassEditor({
             attribute={attribute}
             onChange={(next) => updateAttribute(index, next)}
             onRemove={() => removeAttribute(index)}
-            onMoveUp={() => moveAttribute(index, -1)}
-            onMoveDown={() => moveAttribute(index, 1)}
-            canMoveUp={index > 0}
-            canMoveDown={index < classNode.attributes.length - 1}
+            sortable={attributeSortable(index)}
           />
         ))}
       </ListSection>
@@ -161,10 +149,7 @@ export function ClassEditor({
             operation={operation}
             onChange={(next) => updateOperation(index, next)}
             onRemove={() => removeOperation(index)}
-            onMoveUp={() => moveOperation(index, -1)}
-            onMoveDown={() => moveOperation(index, 1)}
-            canMoveUp={index > 0}
-            canMoveDown={index < classNode.operations.length - 1}
+            sortable={operationSortable(index)}
           />
         ))}
       </ListSection>

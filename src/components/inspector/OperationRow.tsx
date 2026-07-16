@@ -5,15 +5,17 @@ import { useState } from "react";
 import type { Operation } from "@/types/diagram";
 import { formatParameters, parseParameters } from "@/lib/umlFormat";
 import {
+  DragHandle,
   INPUT_CLASS,
   RemoveRowButton,
-  ReorderRowButtons,
   VisibilitySelect,
 } from "./controls";
+import { sortableRowClass, type SortableRowBindings } from "./useSortableList";
 
 /**
  * 操作 1 件の編集 UI。
- * 〔可視性〕〔名前〕〔戻り型〕〔並び替え〕〔削除〕／〔引数〕〔static〕〔abstract〕。
+ * 〔グリップ〕〔可視性〕〔名前〕〔戻り型〕〔削除〕／〔引数〕〔static〕〔abstract〕。
+ * 並び替えはグリップのドラッグ&ドロップで行う。
  *
  * 引数だけは `name: type, ...` のテキストで編集する。入力中の再整形による
  * カーソルのジャンクを避けるため、生テキストを行内ローカル state で保持し、
@@ -24,18 +26,12 @@ export function OperationRow({
   operation,
   onChange,
   onRemove,
-  onMoveUp,
-  onMoveDown,
-  canMoveUp,
-  canMoveDown,
+  sortable,
 }: {
   operation: Operation;
   onChange: (next: Operation) => void;
   onRemove: () => void;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
-  canMoveUp: boolean;
-  canMoveDown: boolean;
+  sortable: SortableRowBindings;
 }) {
   const [paramsText, setParamsText] = useState(() =>
     formatParameters(operation.parameters)
@@ -47,8 +43,12 @@ export function OperationRow({
   };
 
   return (
-    <li className="flex flex-col gap-1 rounded border border-slate-100 p-1.5">
+    <li
+      {...sortable.rowProps}
+      className={`flex flex-col gap-1 rounded border border-slate-100 p-1.5 ${sortableRowClass(sortable)}`}
+    >
       <div className="flex items-center gap-1">
+        <DragHandle {...sortable.handleProps} />
         <VisibilitySelect
           value={operation.visibility}
           onChange={(visibility) => onChange({ ...operation, visibility })}
@@ -70,12 +70,6 @@ export function OperationRow({
           placeholder="戻り型"
           className={INPUT_CLASS}
           aria-label="戻り型"
-        />
-        <ReorderRowButtons
-          onMoveUp={onMoveUp}
-          onMoveDown={onMoveDown}
-          canMoveUp={canMoveUp}
-          canMoveDown={canMoveDown}
         />
         <RemoveRowButton onClick={onRemove} />
       </div>

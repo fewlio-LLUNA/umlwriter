@@ -1,36 +1,31 @@
 "use client";
 
 import type { Attribute } from "@/types/diagram";
-import {
-  INPUT_CLASS,
-  RemoveRowButton,
-  ReorderRowButtons,
-  VisibilitySelect,
-} from "./controls";
+import { DragHandle, INPUT_CLASS, RemoveRowButton, VisibilitySelect } from "./controls";
+import { sortableRowClass, type SortableRowBindings } from "./useSortableList";
 
 /**
  * 属性 1 行の編集 UI。
- * 〔可視性〕〔名前〕〔型〕〔static〕〔並び替え〕〔削除〕。値は親（モデル）に即時反映する。
+ * 〔グリップ〕〔可視性〕〔名前〕〔型〕〔static〕〔削除〕。値は親（モデル）に即時反映する。
+ * 並び替えはグリップのドラッグ&ドロップで行う（バインディングは親が index 単位で作る）。
  */
 export function AttributeRow({
   attribute,
   onChange,
   onRemove,
-  onMoveUp,
-  onMoveDown,
-  canMoveUp,
-  canMoveDown,
+  sortable,
 }: {
   attribute: Attribute;
   onChange: (next: Attribute) => void;
   onRemove: () => void;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
-  canMoveUp: boolean;
-  canMoveDown: boolean;
+  sortable: SortableRowBindings;
 }) {
   return (
-    <li className="flex items-center gap-1">
+    <li
+      {...sortable.rowProps}
+      className={`flex items-center gap-1 rounded border-y-2 border-transparent ${sortableRowClass(sortable)}`}
+    >
+      <DragHandle {...sortable.handleProps} />
       <VisibilitySelect
         value={attribute.visibility}
         onChange={(visibility) => onChange({ ...attribute, visibility })}
@@ -63,12 +58,6 @@ export function AttributeRow({
         />
         static
       </label>
-      <ReorderRowButtons
-        onMoveUp={onMoveUp}
-        onMoveDown={onMoveDown}
-        canMoveUp={canMoveUp}
-        canMoveDown={canMoveDown}
-      />
       <RemoveRowButton onClick={onRemove} />
     </li>
   );
