@@ -50,6 +50,7 @@ import {
   INSPECTOR_DEFAULT_WIDTH,
 } from "@/lib/storage";
 import { exportDiagramJson } from "@/lib/jsonIo";
+import { exportDiagramMarkdown } from "@/lib/exportMermaid";
 import {
   DEFAULT_DISPLAY_PREFS,
   DisplayPrefsProvider,
@@ -391,6 +392,11 @@ function DiagramEditorBody({
     exportDiagramJson(flowToDiagram(nodes, edges));
   }, [nodes, edges]);
 
+  // 現在の図を Mermaid 記法の Markdown で書き出す。
+  const handleExportMarkdown = useCallback(() => {
+    exportDiagramMarkdown(flowToDiagram(nodes, edges));
+  }, [nodes, edges]);
+
   // 読み込んだ Diagram で現在の図を置き換える（同期 / 保存に乗る）。
   const handleImportDiagram = useCallback(
     (diagram: Diagram) => {
@@ -479,6 +485,7 @@ function DiagramEditorBody({
             onAddClass={handleAddClass}
             onAddPackage={handleAddPackage}
             onExportJson={handleExportJson}
+            onExportMarkdown={handleExportMarkdown}
             onImportDiagram={handleImportDiagram}
             displayPrefs={displayPrefs}
             onToggleDisplayPref={toggleDisplayPref}

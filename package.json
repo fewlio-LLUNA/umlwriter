@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "sync:dev": "wrangler dev",
     "sync:deploy": "wrangler deploy",
     "sync:typecheck": "tsc -p party/tsconfig.json"
@@ -30,8 +32,11 @@
     "@types/react-dom": "^19.2.3",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.2.9",
+    "jsdom": "^29.1.1",
+    "mermaid": "^11.16.0",
     "tailwindcss": "^4.3.2",
     "typescript": "^6.0.3",
+    "vitest": "^4.1.10",
     "wrangler": "^4.110.0"
   }
 }

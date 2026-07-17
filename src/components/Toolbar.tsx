@@ -12,14 +12,15 @@ import { readDiagramFile } from "@/lib/jsonIo";
 /**
  * 上部ツールバー（Phase 6）。
  *
- * クラス追加・JSON 入出力・画像書き出し（SVG / PNG）。書き出しは全体を fitView
- * してからマーカー定義を含む外側コンテナ（.uml-canvas）を画像化する。
- * JSON 読み込みは検証 OK のときだけ確認の上で現在の図を置き換える。
+ * クラス追加・JSON 入出力・画像書き出し（SVG / PNG）・Mermaid Markdown 書き出し。
+ * 画像書き出しは全体を fitView してからマーカー定義を含む外側コンテナ（.uml-canvas）を
+ * 画像化する。JSON 読み込みは検証 OK のときだけ確認の上で現在の図を置き換える。
  */
 export function Toolbar({
   onAddClass,
   onAddPackage,
   onExportJson,
+  onExportMarkdown,
   onImportDiagram,
   displayPrefs,
   onToggleDisplayPref,
@@ -31,6 +32,7 @@ export function Toolbar({
   onAddClass: () => void;
   onAddPackage: () => void;
   onExportJson: () => void;
+  onExportMarkdown: () => void;
   onImportDiagram: (diagram: Diagram) => void;
   displayPrefs: DisplayPrefs;
   onToggleDisplayPref: (key: keyof DisplayPrefs) => void;
@@ -182,6 +184,16 @@ export function Toolbar({
           className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
         >
           PNG
+        </button>
+
+        <span className="ml-2 text-xs text-slate-400">Markdown</span>
+        <button
+          type="button"
+          onClick={onExportMarkdown}
+          title="Mermaid 記法の .md として書き出す"
+          className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+        >
+          Mermaid
         </button>
       </div>
     </header>
